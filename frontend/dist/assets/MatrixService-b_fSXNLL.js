@@ -1,0 +1,1 @@
+import{j as r}from"./index-BgG6PEb_.js";import{P as e}from"./PagePlaceholder-DK4UozlY.js";import"./card-C6O37ksb.js";function a(){return r.jsx(e,{title:"Matrix — Service Delivery",description:"Service delivery matrix indicators."})}export{a as default};
