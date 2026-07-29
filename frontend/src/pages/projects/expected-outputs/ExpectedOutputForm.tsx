@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useStrategies, useKeyActivities, useExpectedOutputs, useCreateExpectedOutput, useUpdateExpectedOutput } from "@/hooks/useProjectsApi";
+import { useComponents, useObjectives, useStrategies, useKeyActivities, useExpectedOutputs, useCreateExpectedOutput, useUpdateExpectedOutput } from "@/hooks/useProjectsApi";
 
 interface RowItem {
   _key: string;
@@ -26,6 +26,8 @@ export default function ExpectedOutputForm({ mode = "create" }: ExpectedOutputFo
   const { id } = useParams<{ id: string }>();
 
   const { data: strategies = [] } = useStrategies();
+  const { data: objectives = [] } = useObjectives();
+  const { data: components = [] } = useComponents();
   const { data: allKeyActivities = [] } = useKeyActivities();
   const { data: outputs = [] } = useExpectedOutputs();
   const createOutput = useCreateExpectedOutput();
@@ -56,6 +58,7 @@ export default function ExpectedOutputForm({ mode = "create" }: ExpectedOutputFo
   }, [mode, id, outputs, navigate]);
 
   useEffect(() => {
+    if (mode === "edit") return;
     if (strategyId) {
       if (!allKeyActivities.some((a) => a.strategyId === strategyId && a.id === keyActivityId)) {
         setKeyActivityId("");
@@ -63,7 +66,11 @@ export default function ExpectedOutputForm({ mode = "create" }: ExpectedOutputFo
     } else {
       setKeyActivityId("");
     }
-  }, [strategyId, allKeyActivities]);
+  }, [mode, strategyId, allKeyActivities, keyActivityId]);
+
+  const keyActivityName = keyActivityId
+    ? allKeyActivities.find((activity) => String(activity.id) === String(keyActivityId))?.text ?? "Loading linked Key Activity…"
+    : "Not linked";
 
   const addRow = () => setRows((r) => [...r, { _key: uid(), text: "", error: "" }]);
   const removeRow = (key: string) => { if (rows.length > 1) setRows((r) => r.filter((row) => row._key !== key)); };
@@ -80,7 +87,7 @@ export default function ExpectedOutputForm({ mode = "create" }: ExpectedOutputFo
 
     try {
       if (mode === "edit") {
-        await updateOutput.mutateAsync({ id: id!, strategyId, keyActivityId, text: rows[0].text });
+        await updateOutput.mutateAsync({ id: id!, text: rows[0].text });
         toast.success("Expected output updated successfully");
       } else {
         const saved = rows.filter((r) => r.text.trim());
@@ -113,10 +120,14 @@ export default function ExpectedOutputForm({ mode = "create" }: ExpectedOutputFo
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 max-w-2xl">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 max-w-4xl">
+            {mode === "edit" && <>
+              <div className="space-y-1.5"><Label>Key Result Area</Label><Input readOnly value={components.find((c) => c.id === strategies.find((s) => s.id === strategyId)?.componentId)?.title ?? "Linked KRA"} className="bg-muted text-muted-foreground" /></div>
+              <div className="space-y-1.5"><Label>Strategic Objective</Label><Input readOnly value={objectives.find((o) => o.id === strategies.find((s) => s.id === strategyId)?.objectiveId)?.text ?? "Linked strategic objective"} className="bg-muted text-muted-foreground" /></div>
+            </>}
             <div className="space-y-1.5">
               <Label>Strategy <span className="text-red-600">*</span></Label>
-              <Select
+              {mode === "edit" ? <Input readOnly value={strategies.find((s) => s.id === strategyId)?.text ?? "Linked strategy"} className="bg-muted text-muted-foreground" /> : <Select
                 value={strategyId}
                 onValueChange={(v) => { setStrategyId(v); setStrategyError(""); }}
                 disabled={strategies.length === 0}
@@ -125,13 +136,13 @@ export default function ExpectedOutputForm({ mode = "create" }: ExpectedOutputFo
                 <SelectContent>
                   {strategies.map((s) => <SelectItem key={s.id} value={s.id}>{s.text}</SelectItem>)}
                 </SelectContent>
-              </Select>
+              </Select>}
               {strategyError && <p className="text-xs text-red-600">{strategyError}</p>}
             </div>
 
             <div className="space-y-1.5">
               <Label>Key Activity <span className="text-xs text-muted-foreground font-normal">(optional)</span></Label>
-              <Select
+              {mode === "edit" ? <Input readOnly value={keyActivityName} className="bg-muted text-muted-foreground" /> : <Select
                 value={keyActivityId}
                 onValueChange={setKeyActivityId}
                 disabled={!strategyId || keyActivities.length === 0}
@@ -151,7 +162,7 @@ export default function ExpectedOutputForm({ mode = "create" }: ExpectedOutputFo
                   <SelectItem value="">— None —</SelectItem>
                   {keyActivities.map((a) => <SelectItem key={a.id} value={a.id}>{a.text}</SelectItem>)}
                 </SelectContent>
-              </Select>
+              </Select>}
               {strategyId && keyActivities.length === 0 && (
                 <p className="text-xs text-muted-foreground">
                   No key activities for this strategy.{" "}

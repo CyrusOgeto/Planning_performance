@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useStrategies, useKeyActivities, useExpectedOutputs, useOutputIndicators, useCreateOutputIndicator, useUpdateOutputIndicator } from "@/hooks/useProjectsApi";
+import { useComponents, useObjectives, useStrategies, useKeyActivities, useExpectedOutputs, useOutputIndicators, useCreateOutputIndicator, useUpdateOutputIndicator } from "@/hooks/useProjectsApi";
 
 interface RowItem {
   _key: string;
@@ -38,6 +38,8 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
   const { id } = useParams<{ id: string }>();
 
   const { data: strategies = [] } = useStrategies();
+  const { data: objectives = [] } = useObjectives();
+  const { data: components = [] } = useComponents();
   const { data: allKeyActivities = [] } = useKeyActivities();
   const { data: allExpectedOutputs = [] } = useExpectedOutputs();
   const { data: indicators = [] } = useOutputIndicators();
@@ -70,6 +72,7 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
   }, [mode, id, indicators, navigate]);
 
   useEffect(() => {
+    if (mode === "edit") return;
     if (strategyId) {
       if (!allKeyActivities.some((a) => a.strategyId === strategyId && a.id === keyActivityId)) setKeyActivityId("");
       if (!allExpectedOutputs.some((o) => o.strategyId === strategyId && o.id === expectedOutputId)) setExpectedOutputId("");
@@ -77,7 +80,17 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
       setKeyActivityId("");
       setExpectedOutputId("");
     }
-  }, [strategyId, allKeyActivities, allExpectedOutputs]);
+  }, [mode, strategyId, allKeyActivities, allExpectedOutputs, keyActivityId, expectedOutputId]);
+
+  const linkedStrategy = strategies.find((strategy) => String(strategy.id) === String(strategyId));
+  const linkedKeyActivity = keyActivityId
+    ? allKeyActivities.find((activity) => String(activity.id) === String(keyActivityId))?.text ?? "Loading linked Key Activity…"
+    : "Not linked";
+  const linkedExpectedOutput = expectedOutputId
+    ? allExpectedOutputs.find((output) => String(output.id) === String(expectedOutputId))?.text ?? "Loading linked Expected Output…"
+    : "Not linked";
+  const linkedObjective = objectives.find((objective) => String(objective.id) === String(linkedStrategy?.objectiveId));
+  const linkedKra = components.find((component) => String(component.id) === String(linkedStrategy?.componentId));
 
   const addRow = () => setRows((r) => [...r, { _key: uid(), text: "", cumulativeTarget: "", year1Target: "", year2Target: "", year3Target: "", year4Target: "", year5Target: "", totalBudgetMillions: "", budgetYear1: "", budgetYear2: "", budgetYear3: "", budgetYear4: "", budgetYear5: "", error: "" }]);
   const removeRow = (key: string) => { if (rows.length > 1) setRows((r) => r.filter((row) => row._key !== key)); };
@@ -94,7 +107,7 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
 
     try {
       if (mode === "edit") {
-        await updateIndicator.mutateAsync({ id: id!, strategyId, keyActivityId, expectedOutputId, text: rows[0].text, cumulativeTarget: rows[0].cumulativeTarget, year1Target: rows[0].year1Target, year2Target: rows[0].year2Target, year3Target: rows[0].year3Target, year4Target: rows[0].year4Target, year5Target: rows[0].year5Target, totalBudgetMillions: rows[0].totalBudgetMillions, budgetYear1: rows[0].budgetYear1, budgetYear2: rows[0].budgetYear2, budgetYear3: rows[0].budgetYear3, budgetYear4: rows[0].budgetYear4, budgetYear5: rows[0].budgetYear5 });
+        await updateIndicator.mutateAsync({ id: id!, text: rows[0].text, cumulativeTarget: rows[0].cumulativeTarget, year1Target: rows[0].year1Target, year2Target: rows[0].year2Target, year3Target: rows[0].year3Target, year4Target: rows[0].year4Target, year5Target: rows[0].year5Target, totalBudgetMillions: rows[0].totalBudgetMillions, budgetYear1: rows[0].budgetYear1, budgetYear2: rows[0].budgetYear2, budgetYear3: rows[0].budgetYear3, budgetYear4: rows[0].budgetYear4, budgetYear5: rows[0].budgetYear5 });
         toast.success("Output indicator updated successfully");
       } else {
         const saved = rows.filter((r) => r.text.trim());
@@ -127,10 +140,14 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 max-w-4xl">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 max-w-5xl">
+            {mode === "edit" && <>
+              <div className="space-y-1.5"><Label>Key Result Area</Label><Input readOnly value={linkedKra?.title ?? "Loading linked KRA…"} className="bg-muted text-muted-foreground" /></div>
+              <div className="space-y-1.5"><Label>Strategic Objective</Label><Input readOnly value={linkedObjective?.text ?? "Loading linked strategic objective…"} className="bg-muted text-muted-foreground" /></div>
+            </>}
             <div className="space-y-1.5">
               <Label>Strategy <span className="text-red-600">*</span></Label>
-              <Select
+              {mode === "edit" ? <Input readOnly value={linkedStrategy?.text ?? "Loading linked strategy…"} className="bg-muted text-muted-foreground" /> : <Select
                 value={strategyId}
                 onValueChange={(v) => { setStrategyId(v); setStrategyError(""); }}
                 disabled={strategies.length === 0}
@@ -139,13 +156,13 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
                 <SelectContent>
                   {strategies.map((s) => <SelectItem key={s.id} value={s.id}>{s.text}</SelectItem>)}
                 </SelectContent>
-              </Select>
+              </Select>}
               {strategyError && <p className="text-xs text-red-600">{strategyError}</p>}
             </div>
 
             <div className="space-y-1.5">
               <Label>Key Activity <span className="text-xs text-muted-foreground font-normal">(optional)</span></Label>
-              <Select
+              {mode === "edit" ? <Input readOnly value={linkedKeyActivity} className="bg-muted text-muted-foreground" /> : <Select
                 value={keyActivityId}
                 onValueChange={setKeyActivityId}
                 disabled={!strategyId || keyActivities.length === 0}
@@ -165,7 +182,7 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
                   <SelectItem value="">— None —</SelectItem>
                   {keyActivities.map((a) => <SelectItem key={a.id} value={a.id}>{a.text}</SelectItem>)}
                 </SelectContent>
-              </Select>
+              </Select>}
               {strategyId && keyActivities.length === 0 && (
                 <p className="text-xs text-muted-foreground">
                   No key activities.{" "}
@@ -176,7 +193,7 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
 
             <div className="space-y-1.5">
               <Label>Expected Output <span className="text-xs text-muted-foreground font-normal">(optional)</span></Label>
-              <Select
+              {mode === "edit" ? <Input readOnly value={linkedExpectedOutput} className="bg-muted text-muted-foreground" /> : <Select
                 value={expectedOutputId}
                 onValueChange={setExpectedOutputId}
                 disabled={!strategyId || expectedOutputs.length === 0}
@@ -196,7 +213,7 @@ export default function OutputIndicatorForm({ mode = "create" }: OutputIndicator
                   <SelectItem value="">— None —</SelectItem>
                   {expectedOutputs.map((o) => <SelectItem key={o.id} value={o.id}>{o.text}</SelectItem>)}
                 </SelectContent>
-              </Select>
+              </Select>}
               {strategyId && expectedOutputs.length === 0 && (
                 <p className="text-xs text-muted-foreground">
                   No expected outputs.{" "}

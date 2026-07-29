@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useStrategies, useKeyActivities, useCreateKeyActivity, useUpdateKeyActivity } from "@/hooks/useProjectsApi";
+import { useComponents, useObjectives, useStrategies, useKeyActivities, useCreateKeyActivity, useUpdateKeyActivity } from "@/hooks/useProjectsApi";
 
 interface RowItem {
   _key: string;
@@ -25,6 +25,8 @@ export default function KeyActivityForm({ mode = "create" }: KeyActivityFormProp
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: strategies = [] } = useStrategies();
+  const { data: objectives = [] } = useObjectives();
+  const { data: components = [] } = useComponents();
   const { data: keyActivities = [] } = useKeyActivities();
   const createKeyActivity = useCreateKeyActivity();
   const updateKeyActivity = useUpdateKeyActivity();
@@ -60,7 +62,7 @@ export default function KeyActivityForm({ mode = "create" }: KeyActivityFormProp
 
     try {
       if (mode === "edit") {
-        await updateKeyActivity.mutateAsync({ id: id!, strategyId, text: rows[0].text });
+        await updateKeyActivity.mutateAsync({ id: id!, text: rows[0].text });
         toast.success("Key activity updated successfully");
       } else {
         const saved = rows.filter((r) => r.text.trim());
@@ -89,22 +91,28 @@ export default function KeyActivityForm({ mode = "create" }: KeyActivityFormProp
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-5">
-          <h2 className="text-base font-semibold">Strategy</h2>
+          <h2 className="text-base font-semibold">Planning Hierarchy</h2>
           {strategies.length === 0 && (
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
               No strategies available.{" "}
               <Link to="/projects/strategy/new" className="underline font-medium">Create a strategy first</Link>.
             </div>
           )}
-          <div className="max-w-md space-y-1.5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 max-w-4xl">
+            {mode === "edit" && <>
+              <div className="space-y-1.5"><Label>Key Result Area</Label><Input readOnly value={components.find((c) => c.id === strategies.find((s) => s.id === strategyId)?.componentId)?.title ?? "Linked KRA"} className="bg-muted text-muted-foreground" /></div>
+              <div className="space-y-1.5"><Label>Strategic Objective</Label><Input readOnly value={objectives.find((o) => o.id === strategies.find((s) => s.id === strategyId)?.objectiveId)?.text ?? "Linked strategic objective"} className="bg-muted text-muted-foreground" /></div>
+            </>}
+          <div className="space-y-1.5">
             <Label>Strategy <span className="text-red-600">*</span></Label>
-            <Select value={strategyId} onValueChange={(v) => { setStrategyId(v); setStrategyError(""); }} disabled={strategies.length === 0}>
+            {mode === "edit" ? <Input readOnly value={strategies.find((s) => s.id === strategyId)?.text ?? "Linked strategy"} className="bg-muted text-muted-foreground" /> : <Select value={strategyId} onValueChange={(v) => { setStrategyId(v); setStrategyError(""); }} disabled={strategies.length === 0}>
               <SelectTrigger><SelectValue placeholder="Select Strategy" /></SelectTrigger>
               <SelectContent>
                 {strategies.map((s) => <SelectItem key={s.id} value={s.id}>{s.text}</SelectItem>)}
               </SelectContent>
-            </Select>
+            </Select>}
             {strategyError && <p className="text-xs text-red-600">{strategyError}</p>}
+          </div>
           </div>
         </div>
 

@@ -131,6 +131,11 @@ class StrategicObjectiveSerializer(serializers.ModelSerializer):
         model = StrategicObjective
         fields = ["id", "componentId", "text", "createdAt"]
 
+    def validate(self, attrs):
+        if self.instance and "key_result_area" in attrs and attrs["key_result_area"] != self.instance.key_result_area:
+            raise serializers.ValidationError({"componentId": "The Key Result Area cannot be changed after creation."})
+        return attrs
+
 
 class StrategySerializer(serializers.ModelSerializer):
     objectiveId = serializers.PrimaryKeyRelatedField(
@@ -146,6 +151,11 @@ class StrategySerializer(serializers.ModelSerializer):
     def get_componentId(self, obj):
         return obj.strategic_objective.key_result_area_id
 
+    def validate(self, attrs):
+        if self.instance and "strategic_objective" in attrs and attrs["strategic_objective"] != self.instance.strategic_objective:
+            raise serializers.ValidationError({"objectiveId": "The Strategic Objective cannot be changed after creation."})
+        return attrs
+
 
 class KeyActivitySerializer(serializers.ModelSerializer):
     strategyId = serializers.PrimaryKeyRelatedField(
@@ -156,6 +166,11 @@ class KeyActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = KeyActivity
         fields = ["id", "strategyId", "text", "createdAt"]
+
+    def validate(self, attrs):
+        if self.instance and "strategy" in attrs and attrs["strategy"] != self.instance.strategy:
+            raise serializers.ValidationError({"strategyId": "The Strategy cannot be changed after creation."})
+        return attrs
 
 
 class ExpectedOutputSerializer(serializers.ModelSerializer):
@@ -173,6 +188,16 @@ class ExpectedOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExpectedOutput
         fields = ["id", "strategyId", "keyActivityId", "text", "createdAt"]
+
+    def validate(self, attrs):
+        errors = {}
+        if self.instance and "strategy" in attrs and attrs["strategy"] != self.instance.strategy:
+            errors["strategyId"] = "The Strategy cannot be changed after creation."
+        if self.instance and "key_activity" in attrs and attrs["key_activity"] != self.instance.key_activity:
+            errors["keyActivityId"] = "The Key Activity cannot be changed after creation."
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
 
 
 class OutputIndicatorSerializer(serializers.ModelSerializer):
@@ -690,6 +715,18 @@ class MainActivitySerializer(serializers.ModelSerializer):
             "name",
             "createdAt",
         ]
+
+    def validate(self, attrs):
+        errors = {}
+        if self.instance and "strategy" in attrs and attrs["strategy"] != self.instance.strategy:
+            errors["strategyId"] = "The Strategy cannot be changed after creation."
+        if self.instance and "key_activity" in attrs and attrs["key_activity"] != self.instance.key_activity:
+            errors["keyActivityId"] = "The Key Activity cannot be changed after creation."
+        if self.instance and "expected_output" in attrs and attrs["expected_output"] != self.instance.expected_output:
+            errors["expectedOutputId"] = "The Expected Output cannot be changed after creation."
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
 
     def get_componentId(self, obj):
         return obj.sub_component.component_id if obj.sub_component_id else None

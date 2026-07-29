@@ -134,13 +134,15 @@ class KeyActivityViewSet(BulkCreateMixin, viewsets.ModelViewSet):
 
 
 class ExpectedOutputViewSet(BulkCreateMixin, viewsets.ModelViewSet):
-    queryset = ExpectedOutput.objects.all()
+    queryset = ExpectedOutput.objects.select_related("strategy", "key_activity").all()
     serializer_class = ExpectedOutputSerializer
     filterset_fields = ["strategy", "key_activity"]
 
 
 class OutputIndicatorViewSet(BulkCreateMixin, viewsets.ModelViewSet):
-    queryset = OutputIndicator.objects.all()
+    queryset = OutputIndicator.objects.select_related(
+        "strategy", "key_activity", "expected_output"
+    ).all()
     serializer_class = OutputIndicatorSerializer
     filterset_fields = ["expected_output", "strategy", "key_activity"]
 

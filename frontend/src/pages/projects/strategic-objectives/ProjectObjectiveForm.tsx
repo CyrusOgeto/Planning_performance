@@ -54,7 +54,7 @@ export default function ProjectObjectiveForm({ mode = "create" }: ProjectObjecti
         await createObjective.mutateAsync({ componentId: form.componentId, text: form.text });
         toast.success("Strategic objective created successfully");
       } else {
-        await updateObjective.mutateAsync({ id: id!, componentId: form.componentId, text: form.text });
+        await updateObjective.mutateAsync({ id: id!, text: form.text });
         toast.success("Strategic objective updated successfully");
       }
       navigate("/projects/strategic-objectives");
@@ -92,6 +92,9 @@ export default function ProjectObjectiveForm({ mode = "create" }: ProjectObjecti
               <Label>
                 Key Result Area <span className="text-red-600">*</span>
               </Label>
+              {mode === "edit" ? (
+                <Input readOnly value={components.find((c) => c.id === form.componentId)?.title ?? "Linked KRA"} className="bg-muted text-muted-foreground" />
+              ) : (
               <Select value={form.componentId} onValueChange={(v) => update("componentId", v)} disabled={components.length === 0}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Key Result Area" />
@@ -102,6 +105,7 @@ export default function ProjectObjectiveForm({ mode = "create" }: ProjectObjecti
                   ))}
                 </SelectContent>
               </Select>
+              )}
               {errors.componentId && <p className="text-xs text-red-600">{errors.componentId}</p>}
             </div>
 

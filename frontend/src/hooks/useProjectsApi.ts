@@ -170,17 +170,11 @@ export function useCreateObjective() {
 export function useUpdateObjective() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      componentId,
-      text,
-    }: {
+    mutationFn: ({ id, text }: {
       id: string;
-      componentId: string;
       text: string;
     }) =>
       api.put<ProjectObjective>(`/strategic-objectives/${id}/`, {
-        componentId: Number(componentId),
         text,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.objectives }),
@@ -229,18 +223,11 @@ export function useCreateStrategy() {
 export function useUpdateStrategy() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      objectiveId,
-      text,
-    }: {
+    mutationFn: ({ id, text }: {
       id: string;
-      componentId?: string;
-      objectiveId: string;
       text: string;
     }) =>
       api.put<ProjectStrategy>(`/strategies/${id}/`, {
-        objectiveId: Number(objectiveId),
         text,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.strategies }),
@@ -279,17 +266,11 @@ export function useCreateKeyActivity() {
 export function useUpdateKeyActivity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      strategyId,
-      text,
-    }: {
+    mutationFn: ({ id, text }: {
       id: string;
-      strategyId: string;
       text: string;
     }) =>
       api.put<KeyActivity>(`/key-activities/${id}/`, {
-        strategyId: Number(strategyId),
         text,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.keyActivities }),
@@ -337,20 +318,11 @@ export function useCreateExpectedOutput() {
 export function useUpdateExpectedOutput() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      strategyId,
-      keyActivityId,
-      text,
-    }: {
+    mutationFn: ({ id, text }: {
       id: string;
-      strategyId: string;
-      keyActivityId: string;
       text: string;
     }) =>
       api.put<ExpectedOutput>(`/expected-outputs/${id}/`, {
-        strategyId: Number(strategyId),
-        keyActivityId: nullableId(keyActivityId),
         text,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.expectedOutputs }),
@@ -378,9 +350,6 @@ export function useCreateOutputIndicator() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
-      strategyId,
-      keyActivityId,
-      expectedOutputId,
       text,
       cumulativeTarget,
       year1Target,
@@ -395,9 +364,6 @@ export function useCreateOutputIndicator() {
       budgetYear4,
       budgetYear5,
     }: {
-      strategyId: string;
-      keyActivityId: string;
-      expectedOutputId: string;
       text: string;
       cumulativeTarget?: string;
       year1Target?: string;
@@ -413,9 +379,6 @@ export function useCreateOutputIndicator() {
       budgetYear5?: string;
     }) =>
       api.post<OutputIndicator>("/output-indicators/", {
-        strategyId: nullableId(strategyId),
-        keyActivityId: nullableId(keyActivityId),
-        expectedOutputId: Number(expectedOutputId),
         text,
         cumulativeTarget,
         year1Target,

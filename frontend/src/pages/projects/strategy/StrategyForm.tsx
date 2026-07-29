@@ -103,7 +103,7 @@ export default function StrategyForm({ mode = "create" }: StrategyFormProps) {
 
     try {
       if (mode === "edit") {
-        await updateStrategy.mutateAsync({ id: id!, componentId, objectiveId, text: rows[0].text });
+        await updateStrategy.mutateAsync({ id: id!, text: rows[0].text });
         toast.success("Strategy updated successfully");
       } else {
         const saved = rows.filter((r) => r.text.trim());
@@ -165,7 +165,7 @@ export default function StrategyForm({ mode = "create" }: StrategyFormProps) {
               <Label>
                 Key Result Area <span className="text-red-600">*</span>
               </Label>
-              <Select
+              {mode === "edit" ? <Input readOnly value={components.find((c) => c.id === componentId)?.title ?? "Linked KRA"} className="bg-muted text-muted-foreground" /> : <Select
                 value={componentId}
                 onValueChange={(v) => { setComponentId(v); setHeaderErrors((e) => ({ ...e, componentId: "" })); }}
                 disabled={!hasComponents}
@@ -178,7 +178,7 @@ export default function StrategyForm({ mode = "create" }: StrategyFormProps) {
                     <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+              </Select>}
               {headerErrors.componentId && (
                 <p className="text-xs text-red-600">{headerErrors.componentId}</p>
               )}
@@ -188,7 +188,7 @@ export default function StrategyForm({ mode = "create" }: StrategyFormProps) {
               <Label>
                 Strategic Objective <span className="text-red-600">*</span>
               </Label>
-              <Select
+              {mode === "edit" ? <Input readOnly value={allObjectives.find((o) => o.id === objectiveId)?.text ?? "Linked strategic objective"} className="bg-muted text-muted-foreground" /> : <Select
                 value={objectiveId}
                 onValueChange={(v) => { setObjectiveId(v); setHeaderErrors((e) => ({ ...e, objectiveId: "" })); }}
                 disabled={!componentId || filteredObjectives.length === 0}
@@ -209,7 +209,7 @@ export default function StrategyForm({ mode = "create" }: StrategyFormProps) {
                     <SelectItem key={o.id} value={o.id}>{o.text}</SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+              </Select>}
               {headerErrors.objectiveId && (
                 <p className="text-xs text-red-600">{headerErrors.objectiveId}</p>
               )}
