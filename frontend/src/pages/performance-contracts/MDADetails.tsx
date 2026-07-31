@@ -7,12 +7,12 @@ import { PCFormRow, PCReadonlyInput, PCInput, PCSaveButton } from "@/components/
 
 
 export default function MDADetails() {
-  // const [mdaName] = useState("Kenya Agricultural and Livestock Research Organization");
-  // const [contractPeriod] = useState("2025/2026");
-  // const [address, setAddress] = useState("P.O. Box 57811-00200, Nairobi");
-  // const [telephone, setTelephone] = useState("+254 20 4183301");
-  // const [email, setEmail] = useState("dg@kalro.org");
-  // const [website, setWebsite] = useState("www.kalro.org");
+  const [mdaName] = useState("Kenya Agricultural and Livestock Research Organization");
+  const [contractPeriod] = useState("2025/2026");
+  const [address, setAddress] = useState("P.O. Box 57811-00200, Nairobi");
+  const [telephone, setTelephone] = useState("+254 20 4183301");
+  const [email, setEmail] = useState("dg@kalro.org");
+  const [website, setWebsite] = useState("www.kalro.org");
 
   return (
     <div className="max-w-4xl">
@@ -23,7 +23,7 @@ export default function MDADetails() {
         <PCFormRow label="MDA Name:">
           <PCReadonlyInput value="MDA DEtails 3 - SPA" />
         </PCFormRow>
-        {/*<PCFormRow label="MDA Name:">
+        <PCFormRow label="MDA Name:">
           <PCReadonlyInput value={mdaName} />
         </PCFormRow>
         <PCFormRow label="Contract Period:">
@@ -40,10 +40,10 @@ export default function MDADetails() {
         </PCFormRow>
         <PCFormRow label="Website">
           <PCInput value={website} onChange={(e) => setWebsite(e.target.value)} />
-        </PCFormRow>*/}
+        </PCFormRow>
       </div>
-
-      <PCSaveButton />
+     <PCSaveButton onClick={() => {}}/>
+      
     </div>
   );
 }
