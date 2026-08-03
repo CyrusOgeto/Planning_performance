@@ -1,7 +1,7 @@
 
 import PagePlaceholder from "@/components/PagePlaceholder";
 
-import { createFileRoute } from "@tanstack/react-router";
+// import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PCFormRow, PCReadonlyInput, PCInput, PCSaveButton } from "@/components/pc/PCFormRow";
 
@@ -16,12 +16,12 @@ export default function MDADetails() {
 
   return (
     <div className="max-w-4xl">
-   <PagePlaceholder title="MDA Details - SPA" description="Ministry / Department / Agency profile information." />;
+   {/* <PagePlaceholder title="MDA Details - SPA" description="Ministry / Department / Agency profile information." />; */}
       <h1 className="mb-6 text-xl font-bold text-emerald-800">MDA Details - SPA</h1>
 
       <div className="mb-6 overflow-hidden rounded border border-gray-200 bg-white">
         <PCFormRow label="MDA Name:">
-          <PCReadonlyInput value="MDA DEtails 3 - SPA" />
+          <PCReadonlyInput value="MDA Details 3 - SPA" />
         </PCFormRow>
         <PCFormRow label="MDA Name:">
           <PCReadonlyInput value={mdaName} />
