@@ -31,7 +31,7 @@ function ReportsFinalPage() {
         </div>
       </div>
 
-      <div className="min-h-[600px] rounded border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="rounded border border-gray-200 bg-white p-8 shadow-sm">
         <div className="mx-auto max-w-2xl space-y-6">
           <div className="text-center">
             <div className="mx-auto mb-3 h-20 w-20 rounded-full bg-emerald-50 flex items-center justify-center">
