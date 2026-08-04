@@ -10,7 +10,11 @@ import PagePlaceholder from "@/components/PagePlaceholder";
 // });
 
  function PCEvaluations() {
-  return <PagePlaceholder title="Evaluations" description="Quarterly and annual contract evaluations." />;
+  return (
+    <> 
+      <PagePlaceholder title="Evaluations" description="Quarterly and annual contract evaluations." />
+    </> 
+  );
 };
 
 export default PCEvaluations;
