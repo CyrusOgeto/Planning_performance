@@ -92,6 +92,8 @@ const ReportComponents = lazy(() => import("@/pages/projects/report-components/R
 const ReportComponentForm = lazy(() => import("@/pages/projects/report-components/ReportComponentForm"));
 const SubComponents = lazy(() => import("@/pages/projects/sub-components/SubComponents"));
 const SubComponentForm = lazy(() => import("@/pages/projects/sub-components/SubComponentForm"));
+const ProjectOutputs = lazy(() => import("@/pages/projects/project-outputs/ProjectOutputs"));
+const ProjectOutputForm = lazy(() => import("@/pages/projects/project-outputs/ProjectOutputForm"));
 const ActivityIndicators = lazy(() => import("@/pages/projects/activity-indicators/ActivityIndicators"));
 const ActivityIndicatorForm = lazy(() => import("@/pages/projects/activity-indicators/ActivityIndicatorForm"));
 
@@ -195,6 +197,11 @@ function AppRoutes() {
         <Route path="/projects/sub-components/new" element={<SubComponentForm mode="create" />} />
         <Route path="/projects/sub-components/:id/view" element={<SubComponentForm mode="view" />} />
         <Route path="/projects/sub-components/:id/edit" element={<SubComponentForm mode="edit" />} />
+
+        <Route path="/projects/project-outputs" element={<ProjectOutputs />} />
+        <Route path="/projects/project-outputs/new" element={<ProjectOutputForm mode="create" />} />
+        <Route path="/projects/project-outputs/:id/view" element={<ProjectOutputForm mode="view" />} />
+        <Route path="/projects/project-outputs/:id/edit" element={<ProjectOutputForm mode="edit" />} />
 
         <Route path="/projects/sub-activities" element={<SubActivities />} />
         <Route path="/projects/sub-activities/new" element={<SubActivityForm mode="create" />} />
