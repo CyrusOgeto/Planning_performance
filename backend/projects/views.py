@@ -22,6 +22,7 @@ from .models import (
     ProjectDocumentFile,
     ProjectMapping,
     ProjectSubComponent,
+    ProjectOutput,
     Strategy,
     StrategicObjective,
     SubActivity,
@@ -44,6 +45,7 @@ from .serializers import (
     ProjectMappingSerializer,
     ProjectComponentSerializer,
     ProjectSubComponentSerializer,
+    ProjectOutputSerializer,
     ProjectSerializer,
     StrategicObjectiveSerializer,
     StrategySerializer,
@@ -251,6 +253,15 @@ class ProjectSubComponentViewSet(viewsets.ModelViewSet):
     ordering_fields = ["name", "component__name", "created_at", "updated_at"]
 
 
+class ProjectOutputViewSet(BulkCreateMixin, viewsets.ModelViewSet):
+    queryset = ProjectOutput.objects.select_related("sub_component", "sub_component__component").all()
+    serializer_class = ProjectOutputSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["sub_component"]
+    search_fields = ["name", "sub_component__name"]
+    ordering_fields = ["name", "sub_component__name", "created_at", "updated_at"]
+
+
 class IndicatorTrackingViewSet(viewsets.ModelViewSet):
     queryset = IndicatorTracking.objects.all()
     serializer_class = IndicatorTrackingSerializer
@@ -331,7 +342,7 @@ class TechnicalReportViewSet(viewsets.ModelViewSet):
 
 
 class MainActivityViewSet(viewsets.ModelViewSet):
-    queryset = MainActivity.objects.select_related("sub_component", "sub_component__component").all()
+    queryset = MainActivity.objects.select_related("sub_component", "sub_component__component", "project_output").all()
     serializer_class = MainActivitySerializer
 
 
@@ -354,7 +365,7 @@ class SubSubActivityViewSet(BulkCreateMixin, viewsets.ModelViewSet):
 
 class ActivityIndicatorViewSet(BulkCreateMixin, viewsets.ModelViewSet):
     queryset = ActivityIndicator.objects.select_related(
-        "sub_activity", "sub_activity__main_activity"
+        "sub_component", "sub_activity", "sub_activity__main_activity"
     ).all()
     serializer_class = ActivityIndicatorSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

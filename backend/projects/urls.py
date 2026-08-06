@@ -17,6 +17,7 @@ from .views import (
     ProjectComponentViewSet,
     ProjectMappingViewSet,
     ProjectSubComponentViewSet,
+    ProjectOutputViewSet,
     ProjectViewSet,
     StrategicObjectiveViewSet,
     StrategyViewSet,
@@ -40,6 +41,7 @@ router.register(r"project-document-files", ProjectDocumentFileViewSet)
 router.register(r"project-mappings", ProjectMappingViewSet)
 router.register(r"project-components", ProjectComponentViewSet)
 router.register(r"project-sub-components", ProjectSubComponentViewSet)
+router.register(r"project-outputs", ProjectOutputViewSet)
 router.register(r"indicator-tracking", IndicatorTrackingViewSet)
 router.register(r"main-activities", MainActivityViewSet)
 router.register(r"main-activity-indicators", MainActivityIndicatorViewSet)

@@ -23,6 +23,7 @@ from .models import (
     ActivityIndicator,
     ProjectComponent,
     ProjectSubComponent,
+    ProjectOutput,
     TechnicalReport,
 )
 
@@ -465,6 +466,27 @@ class ProjectSubComponentSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class ProjectOutputSerializer(serializers.ModelSerializer):
+    subComponentId = serializers.PrimaryKeyRelatedField(
+        source="sub_component", queryset=ProjectSubComponent.objects.all()
+    )
+    subComponentName = serializers.CharField(source="sub_component.name", read_only=True)
+    createdAt = serializers.DateTimeField(source="created_at", read_only=True)
+    updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
+
+    class Meta:
+        model = ProjectOutput
+        fields = [
+            "id", "subComponentId", "subComponentName", "name", "createdAt", "updatedAt"
+        ]
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Project Output is required.")
+        return value
+
+
 class IndicatorTrackingSerializer(serializers.ModelSerializer):
     project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())
     outputIndicatorId = serializers.PrimaryKeyRelatedField(
@@ -700,6 +722,10 @@ class MainActivitySerializer(serializers.ModelSerializer):
         source="sub_component", queryset=ProjectSubComponent.objects.all()
     )
     subComponentName = serializers.CharField(source="sub_component.name", read_only=True)
+    projectOutputId = serializers.PrimaryKeyRelatedField(
+        source="project_output", queryset=ProjectOutput.objects.all(), required=False, allow_null=True
+    )
+    projectOutputName = serializers.CharField(source="project_output.name", read_only=True)
     componentId = serializers.SerializerMethodField()
     componentName = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
@@ -710,6 +736,8 @@ class MainActivitySerializer(serializers.ModelSerializer):
             "id",
             "subComponentId",
             "subComponentName",
+            "projectOutputId",
+            "projectOutputName",
             "componentId",
             "componentName",
             "name",
@@ -739,6 +767,12 @@ class MainActivitySerializer(serializers.ModelSerializer):
         name = attrs.get("name", getattr(self.instance, "name", "")).strip()
         if not attrs.get("sub_component", getattr(self.instance, "sub_component", None)):
             raise serializers.ValidationError({"subComponentId": "Please select a Sub Component."})
+        project_output = attrs.get("project_output", getattr(self.instance, "project_output", None))
+        sub_component = attrs.get("sub_component", getattr(self.instance, "sub_component", None))
+        if not project_output:
+            raise serializers.ValidationError({"projectOutputId": "Please select a Project Output."})
+        if project_output and project_output.sub_component_id != sub_component.id:
+            raise serializers.ValidationError({"projectOutputId": "Select a Project Output under the selected Sub Component."})
         if not name:
             raise serializers.ValidationError({"name": "Main Activity is required."})
         attrs["name"] = name
@@ -746,11 +780,15 @@ class MainActivitySerializer(serializers.ModelSerializer):
 
 
 class ActivityIndicatorSerializer(serializers.ModelSerializer):
-    subActivityId = serializers.PrimaryKeyRelatedField(
-        source="sub_activity", queryset=SubActivity.objects.all()
+    subComponentId = serializers.PrimaryKeyRelatedField(
+        source="sub_component", queryset=ProjectSubComponent.objects.all()
     )
-    subActivityName = serializers.CharField(source="sub_activity.name", read_only=True)
-    mainActivityName = serializers.CharField(source="sub_activity.main_activity.name", read_only=True)
+    subComponentName = serializers.CharField(source="sub_component.name", read_only=True)
+    subActivityId = serializers.PrimaryKeyRelatedField(
+        source="sub_activity", queryset=SubActivity.objects.all(), required=False, allow_null=True
+    )
+    subActivityName = serializers.CharField(source="sub_activity.name", read_only=True, allow_null=True)
+    mainActivityName = serializers.CharField(source="sub_activity.main_activity.name", read_only=True, allow_null=True)
     unitOfMeasure = serializers.CharField(source="unit_of_measure")
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
     updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
@@ -759,6 +797,8 @@ class ActivityIndicatorSerializer(serializers.ModelSerializer):
         model = ActivityIndicator
         fields = [
             "id",
+            "subComponentId",
+            "subComponentName",
             "subActivityId",
             "subActivityName",
             "mainActivityName",
@@ -774,14 +814,14 @@ class ActivityIndicatorSerializer(serializers.ModelSerializer):
         indicator = attrs.get("indicator", getattr(self.instance, "indicator", "")).strip()
         target = attrs.get("target", getattr(self.instance, "target", "")).strip()
         unit = attrs.get("unit_of_measure", getattr(self.instance, "unit_of_measure", "")).strip()
-        if not attrs.get("sub_activity", getattr(self.instance, "sub_activity", None)):
-            raise serializers.ValidationError({"subActivityId": "Please select a Sub Activity."})
+        sub_component = attrs.get("sub_component", getattr(self.instance, "sub_component", None))
+        sub_activity = attrs.get("sub_activity", getattr(self.instance, "sub_activity", None))
+        if not sub_component:
+            raise serializers.ValidationError({"subComponentId": "Please select a Sub Component."})
+        if sub_activity and sub_activity.main_activity.sub_component_id != sub_component.id:
+            raise serializers.ValidationError({"subActivityId": "Select a Sub Activity under the selected Sub Component."})
         if not indicator:
             raise serializers.ValidationError({"indicator": "Indicator is required."})
-        if not target:
-            raise serializers.ValidationError({"target": "Target is required."})
-        if not unit:
-            raise serializers.ValidationError({"unitOfMeasure": "Unit of Measure is required."})
         attrs["indicator"] = indicator
         attrs["target"] = target
         attrs["unit_of_measure"] = unit

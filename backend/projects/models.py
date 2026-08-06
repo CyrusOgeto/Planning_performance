@@ -292,9 +292,34 @@ class ProjectSubComponent(models.Model):
         return self.name
 
 
+class ProjectOutput(models.Model):
+    sub_component = models.ForeignKey(
+        ProjectSubComponent, on_delete=models.CASCADE, related_name="project_outputs"
+    )
+    name = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sub_component__name", "name"]
+        unique_together = ["sub_component", "name"]
+        verbose_name = "Project Output"
+        verbose_name_plural = "Project Outputs"
+
+    def __str__(self):
+        return self.name
+
+
 class MainActivity(models.Model):
     sub_component = models.ForeignKey(
         ProjectSubComponent,
+        on_delete=models.SET_NULL,
+        related_name="main_activities",
+        null=True,
+        blank=True,
+    )
+    project_output = models.ForeignKey(
+        ProjectOutput,
         on_delete=models.SET_NULL,
         related_name="main_activities",
         null=True,
@@ -399,12 +424,23 @@ class SubSubActivity(models.Model):
 
 
 class ActivityIndicator(models.Model):
+    sub_component = models.ForeignKey(
+        ProjectSubComponent,
+        on_delete=models.SET_NULL,
+        related_name="activity_indicators",
+        null=True,
+        blank=True,
+    )
     sub_activity = models.ForeignKey(
-        SubActivity, on_delete=models.CASCADE, related_name="activity_indicators"
+        SubActivity,
+        on_delete=models.CASCADE,
+        related_name="activity_indicators",
+        null=True,
+        blank=True,
     )
     indicator = models.CharField(max_length=500)
-    target = models.CharField(max_length=500)
-    unit_of_measure = models.CharField(max_length=120)
+    target = models.CharField(max_length=500, blank=True)
+    unit_of_measure = models.CharField(max_length=120, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
