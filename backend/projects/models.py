@@ -431,6 +431,22 @@ class ActivityIndicator(models.Model):
         null=True,
         blank=True,
     )
+    project_output = models.ForeignKey(
+        ProjectOutput,
+        on_delete=models.SET_NULL,
+        related_name="activity_indicators",
+        null=True,
+        blank=True,
+    )
+    main_activity = models.ForeignKey(
+        MainActivity,
+        on_delete=models.SET_NULL,
+        related_name="activity_indicators",
+        null=True,
+        blank=True,
+    )
+    # Retained temporarily to preserve legacy records; new Indicator workflows use
+    # main_activity as the authoritative parent relationship.
     sub_activity = models.ForeignKey(
         SubActivity,
         on_delete=models.CASCADE,

@@ -784,11 +784,14 @@ class ActivityIndicatorSerializer(serializers.ModelSerializer):
         source="sub_component", queryset=ProjectSubComponent.objects.all()
     )
     subComponentName = serializers.CharField(source="sub_component.name", read_only=True)
-    subActivityId = serializers.PrimaryKeyRelatedField(
-        source="sub_activity", queryset=SubActivity.objects.all(), required=False, allow_null=True
+    projectOutputId = serializers.PrimaryKeyRelatedField(
+        source="project_output", queryset=ProjectOutput.objects.all(), required=False, allow_null=True
     )
-    subActivityName = serializers.CharField(source="sub_activity.name", read_only=True, allow_null=True)
-    mainActivityName = serializers.CharField(source="sub_activity.main_activity.name", read_only=True, allow_null=True)
+    projectOutputName = serializers.CharField(source="project_output.name", read_only=True, allow_null=True)
+    mainActivityId = serializers.PrimaryKeyRelatedField(
+        source="main_activity", queryset=MainActivity.objects.all(), required=False, allow_null=True
+    )
+    mainActivityName = serializers.CharField(source="main_activity.name", read_only=True, allow_null=True)
     unitOfMeasure = serializers.CharField(source="unit_of_measure")
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
     updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
@@ -799,8 +802,9 @@ class ActivityIndicatorSerializer(serializers.ModelSerializer):
             "id",
             "subComponentId",
             "subComponentName",
-            "subActivityId",
-            "subActivityName",
+            "projectOutputId",
+            "projectOutputName",
+            "mainActivityId",
             "mainActivityName",
             "indicator",
             "target",
@@ -815,11 +819,16 @@ class ActivityIndicatorSerializer(serializers.ModelSerializer):
         target = attrs.get("target", getattr(self.instance, "target", "")).strip()
         unit = attrs.get("unit_of_measure", getattr(self.instance, "unit_of_measure", "")).strip()
         sub_component = attrs.get("sub_component", getattr(self.instance, "sub_component", None))
-        sub_activity = attrs.get("sub_activity", getattr(self.instance, "sub_activity", None))
+        project_output = attrs.get("project_output", getattr(self.instance, "project_output", None))
+        main_activity = attrs.get("main_activity", getattr(self.instance, "main_activity", None))
         if not sub_component:
             raise serializers.ValidationError({"subComponentId": "Please select a Sub Component."})
-        if sub_activity and sub_activity.main_activity.sub_component_id != sub_component.id:
-            raise serializers.ValidationError({"subActivityId": "Select a Sub Activity under the selected Sub Component."})
+        if main_activity and main_activity.sub_component_id != sub_component.id:
+            raise serializers.ValidationError({"mainActivityId": "Select a Main Activity under the selected Sub Component."})
+        if project_output and project_output.sub_component_id != sub_component.id:
+            raise serializers.ValidationError({"projectOutputId": "Select a Project Output under the selected Sub Component."})
+        if main_activity and project_output and main_activity.project_output_id and main_activity.project_output_id != project_output.id:
+            raise serializers.ValidationError({"mainActivityId": "Select a Main Activity under the selected Project Output."})
         if not indicator:
             raise serializers.ValidationError({"indicator": "Indicator is required."})
         attrs["indicator"] = indicator

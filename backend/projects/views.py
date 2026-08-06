@@ -365,10 +365,10 @@ class SubSubActivityViewSet(BulkCreateMixin, viewsets.ModelViewSet):
 
 class ActivityIndicatorViewSet(BulkCreateMixin, viewsets.ModelViewSet):
     queryset = ActivityIndicator.objects.select_related(
-        "sub_component", "sub_activity", "sub_activity__main_activity"
+        "sub_component", "project_output", "main_activity"
     ).all()
     serializer_class = ActivityIndicatorSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["sub_activity"]
-    search_fields = ["indicator", "target", "unit_of_measure", "sub_activity__name"]
+    filterset_fields = ["main_activity", "project_output", "sub_component"]
+    search_fields = ["indicator", "target", "unit_of_measure", "main_activity__name", "project_output__name"]
     ordering_fields = ["indicator", "target", "unit_of_measure", "created_at"]
