@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import {
   useActivityIndicators,
   useCreateActivityIndicators,
-  useSubActivities,
   useProjectSubComponents,
   useMainActivities,
+  useProjectOutputs,
   useUpdateActivityIndicator,
 } from "@/hooks/useProjectsApi";
 
@@ -49,14 +49,15 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { data: items = [] } = useActivityIndicators();
-  const { data: subActivities = [] } = useSubActivities();
   const { data: subComponents = [] } = useProjectSubComponents();
   const { data: mainActivities = [] } = useMainActivities();
+  const { data: projectOutputs = [], isLoading: projectOutputsLoading } = useProjectOutputs();
   const createItems = useCreateActivityIndicators();
   const updateItem = useUpdateActivityIndicator();
 
-  const [subActivityId, setSubActivityId] = useState("");
+  const [mainActivityId, setMainActivityId] = useState("");
   const [subComponentId, setSubComponentId] = useState("");
+  const [projectOutputId, setProjectOutputId] = useState("");
   const [rows, setRows] = useState<IndicatorRow[]>([createRow()]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -68,8 +69,9 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
         navigate("/projects/activity-indicators");
         return;
       }
-      setSubActivityId(item.subActivityId ?? "");
+      setMainActivityId(item.mainActivityId ?? "");
       setSubComponentId(item.subComponentId);
+      setProjectOutputId(item.projectOutputId ?? "");
       setRows([
         {
           _key: uid(),
@@ -125,8 +127,9 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
     try {
       if (mode === "create") {
         const payload = validatedRows.map((row) => ({
-          subActivityId,
+          mainActivityId,
           subComponentId,
+          projectOutputId,
           indicator: row.indicator.trim(),
           target: row.target.trim(),
           unitOfMeasure: row.unitOfMeasure.trim(),
@@ -137,8 +140,9 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
         const row = validatedRows[0];
         await updateItem.mutateAsync({
           id: id!,
-          subActivityId,
+          mainActivityId,
           subComponentId,
+          projectOutputId,
           indicator: row.indicator.trim(),
           target: row.target.trim(),
           unitOfMeasure: row.unitOfMeasure.trim(),
@@ -157,7 +161,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
     <div className="space-y-6">
       <PageHeader
         title={mode === "create" ? "Add New Indicators" : mode === "edit" ? "Edit Indicator" : "View Indicator"}
-        description={mode === "create" ? "Create one or more Indicators linked to a Sub Activity." : "Indicator details linked to a Sub Activity."}
+        description={mode === "create" ? "Create one or more Indicators linked to a Main Activity." : "Indicator details linked to a Main Activity."}
         actions={
           <Button asChild variant="outline">
             <Link to="/projects/activity-indicators">
@@ -172,38 +176,50 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
           <div className="max-w-3xl space-y-1.5 mb-5">
             <Label htmlFor="subComponent">Sub Component {!isView && <span className="text-red-600">*</span>}</Label>
             {isView ? <Input value={subComponents.find((item) => item.id === subComponentId)?.name ?? ""} disabled /> : (
-              <select id="subComponent" value={subComponentId} onChange={(event) => { setSubComponentId(event.target.value); setSubActivityId(""); setErrors((prev) => ({ ...prev, subComponentId: "" })); }} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+              <select id="subComponent" value={subComponentId} onChange={(event) => { setSubComponentId(event.target.value); setProjectOutputId(""); setMainActivityId(""); setErrors((prev) => ({ ...prev, subComponentId: "" })); }} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                 <option value="">- Select Sub Component -</option>
                 {subComponents.map((item) => <option key={item.id} value={item.id}>{item.componentName} - {item.name}</option>)}
               </select>
             )}
             {errors.subComponentId && <p className="text-xs text-red-600">{errors.subComponentId}</p>}
           </div>
-          <div className="max-w-3xl space-y-1.5">
-            <Label htmlFor="subActivity">Sub Activity <span className="text-muted-foreground">(Optional)</span></Label>
+          <div className="max-w-3xl space-y-1.5 mb-5">
+            <Label htmlFor="projectOutput">Project Output <span className="text-muted-foreground">(Optional)</span></Label>
             {isView ? (
-              <Input value={subActivities.find((item) => item.id === subActivityId)?.name ?? ""} disabled />
+              <Input value={projectOutputs.find((item) => item.id === projectOutputId)?.name ?? ""} disabled />
+            ) : (
+              <select id="projectOutput" value={projectOutputId} disabled={!subComponentId || projectOutputsLoading} onChange={(event) => { setProjectOutputId(event.target.value); setMainActivityId(""); setErrors((prev) => ({ ...prev, projectOutputId: "" })); }} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                <option value="">{!subComponentId ? "- Select a Sub Component first -" : projectOutputsLoading ? "Loading Project Outputs..." : "- Select Project Output -"}</option>
+                {projectOutputs.filter((item) => item.subComponentId === subComponentId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            )}
+            {!isView && subComponentId && !projectOutputsLoading && projectOutputs.filter((item) => item.subComponentId === subComponentId).length === 0 && <p className="text-xs text-muted-foreground">No Project Outputs exist for this Sub Component.</p>}
+          </div>
+          <div className="max-w-3xl space-y-1.5">
+            <Label htmlFor="mainActivity">Main Activity <span className="text-muted-foreground">(Optional)</span></Label>
+            {isView ? (
+              <Input value={mainActivities.find((item) => item.id === mainActivityId)?.name ?? ""} disabled />
             ) : (
               <select
-                id="subActivity"
-                value={subActivityId}
+                id="mainActivity"
+                value={mainActivityId}
                 onChange={(event) => {
-                  setSubActivityId(event.target.value);
-                  setErrors((prev) => ({ ...prev, subActivityId: "" }));
+                  setMainActivityId(event.target.value);
+                  setErrors((prev) => ({ ...prev, mainActivityId: "" }));
                 }}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="">- Select Sub Activity -</option>
-                {subActivities.filter((item) => !subComponentId || mainActivities.some((main) => main.id === item.mainActivityId && main.subComponentId === subComponentId)).map((item) => (
-                  <option key={item.id} value={item.id}>{item.mainActivityName} - {item.name}</option>
+                <option value="">- Select Main Activity -</option>
+                {mainActivities.filter((item) => !subComponentId || (item.subComponentId === subComponentId && (!projectOutputId || item.projectOutputId === projectOutputId))).map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
               </select>
             )}
-            {errors.subActivityId && <p className="text-xs text-red-600">{errors.subActivityId}</p>}
-            {!isView && subActivities.length === 0 && (
+            {errors.mainActivityId && <p className="text-xs text-red-600">{errors.mainActivityId}</p>}
+            {!isView && mainActivities.length === 0 && (
               <p className="text-xs text-amber-600">
-                No Sub Activities found.{" "}
-                <Link to="/projects/sub-activities/new" className="font-medium underline">
+                No Main Activities found.{" "}
+                <Link to="/projects/main-activities/new" className="font-medium underline">
                   Create one first.
                 </Link>
               </p>
@@ -215,7 +231,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-semibold">{mode === "create" ? "Indicators" : "Indicator"}</h2>
             {mode === "create" && (
-              <Button type="button" variant="outline" size="sm" onClick={addRow} disabled={subActivities.length === 0}>
+              <Button type="button" variant="outline" size="sm" onClick={addRow} disabled={mainActivities.length === 0}>
                 <Plus className="h-3.5 w-3.5" /> Add Another Indicator
               </Button>
             )}
@@ -275,7 +291,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
           </div>
 
           {mode === "create" && rows.length > 1 && (
-            <p className="mt-3 text-xs text-muted-foreground">{rows.length} indicators will be saved under the selected Sub Activity.</p>
+            <p className="mt-3 text-xs text-muted-foreground">{rows.length} indicators will be saved under the selected Main Activity.</p>
           )}
         </div>
 
