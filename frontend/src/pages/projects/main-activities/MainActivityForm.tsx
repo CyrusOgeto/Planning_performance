@@ -11,6 +11,7 @@ import {
   useCreateMainActivity,
   useUpdateMainActivity,
   useProjectSubComponents,
+  useProjectOutputs,
 } from "@/hooks/useProjectsApi";
 
 interface MainActivityFormProps {
@@ -22,17 +23,20 @@ export default function MainActivityForm({ mode = "create" }: MainActivityFormPr
   const { id } = useParams<{ id: string }>();
   const { data: items = [] } = useMainActivities();
   const { data: subComponents = [] } = useProjectSubComponents();
+  const { data: projectOutputs = [] } = useProjectOutputs();
   const createItem = useCreateMainActivity();
   const updateItem = useUpdateMainActivity();
   const [subComponentId, setSubComponentId] = useState("");
+  const [projectOutputId, setProjectOutputId] = useState("");
   const [name, setName] = useState("");
-  const [errors, setErrors] = useState<{ subComponentId?: string; name?: string }>({});
+  const [errors, setErrors] = useState<{ subComponentId?: string; projectOutputId?: string; name?: string }>({});
 
   useEffect(() => {
     if ((mode === "edit" || mode === "view") && id && items.length) {
       const item = items.find((a) => a.id === id);
       if (item) {
         setSubComponentId(item.subComponentId ?? "");
+        setProjectOutputId(item.projectOutputId ?? "");
         setName(item.name);
       } else {
         toast.error("Main Activity not found");
@@ -45,16 +49,17 @@ export default function MainActivityForm({ mode = "create" }: MainActivityFormPr
     e.preventDefault();
     const nextErrors: typeof errors = {};
     if (!subComponentId) nextErrors.subComponentId = "Please select a Sub Component";
+    if (!projectOutputId) nextErrors.projectOutputId = "Please select a Project Output";
     if (!name.trim()) nextErrors.name = "Main Activity is required";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     try {
       if (mode === "create") {
-        await createItem.mutateAsync({ subComponentId, name: name.trim() });
+        await createItem.mutateAsync({ subComponentId, projectOutputId, name: name.trim() });
         toast.success("Main Activity created successfully");
       } else {
-        await updateItem.mutateAsync({ id: id!, subComponentId, name: name.trim() });
+        await updateItem.mutateAsync({ id: id!, subComponentId, projectOutputId, name: name.trim() });
         toast.success("Main Activity updated successfully");
       }
       navigate("/projects/main-activities");
@@ -109,6 +114,7 @@ export default function MainActivityForm({ mode = "create" }: MainActivityFormPr
                 value={subComponentId}
                 onChange={(e) => {
                   setSubComponentId(e.target.value);
+                  setProjectOutputId("");
                   setErrors((prev) => ({ ...prev, subComponentId: undefined }));
                 }}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -130,6 +136,17 @@ export default function MainActivityForm({ mode = "create" }: MainActivityFormPr
                 </Link>
               </p>
             )}
+          </div>
+
+          <div className="space-y-1.5 max-w-md">
+            <Label htmlFor="projectOutput">Project Output {!isView && <span className="text-red-600">*</span>}</Label>
+            {isView ? <Input value={projectOutputs.find((item) => item.id === projectOutputId)?.name ?? ""} disabled /> : (
+              <select id="projectOutput" value={projectOutputId} onChange={(e) => { setProjectOutputId(e.target.value); setErrors((prev) => ({ ...prev, projectOutputId: undefined })); }} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm">
+                <option value="">- Select Project Output -</option>
+                {projectOutputs.filter((item) => item.subComponentId === subComponentId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            )}
+            {errors.projectOutputId && <p className="text-xs text-red-600">{errors.projectOutputId}</p>}
           </div>
 
           <div className="space-y-1.5 max-w-md">
