@@ -878,21 +878,24 @@ export function useCreateActivityIndicator() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
-      subActivityId,
       subComponentId,
+      projectOutputId,
+      mainActivityId,
       indicator,
       target,
       unitOfMeasure,
     }: {
       subComponentId: string;
-      subActivityId?: string;
+      projectOutputId?: string;
+      mainActivityId?: string;
       indicator: string;
       target: string;
       unitOfMeasure: string;
     }) =>
       api.post<ActivityIndicator>("/activity-indicators/", {
         subComponentId: Number(subComponentId),
-        subActivityId: nullableId(subActivityId),
+        projectOutputId: nullableId(projectOutputId),
+        mainActivityId: nullableId(mainActivityId),
         indicator,
         target,
         unitOfMeasure,
@@ -907,7 +910,8 @@ export function useCreateActivityIndicators() {
     mutationFn: (
       items: Array<{
         subComponentId: string;
-        subActivityId?: string;
+        projectOutputId?: string;
+        mainActivityId?: string;
         indicator: string;
         target: string;
         unitOfMeasure: string;
@@ -918,7 +922,8 @@ export function useCreateActivityIndicators() {
         items.map((item) => ({
           ...item,
           subComponentId: Number(item.subComponentId),
-          subActivityId: nullableId(item.subActivityId),
+          projectOutputId: nullableId(item.projectOutputId),
+          mainActivityId: nullableId(item.mainActivityId),
         })),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.activityIndicators }),
@@ -930,22 +935,25 @@ export function useUpdateActivityIndicator() {
   return useMutation({
     mutationFn: ({
       id,
-      subActivityId,
       subComponentId,
+      projectOutputId,
+      mainActivityId,
       indicator,
       target,
       unitOfMeasure,
     }: {
       id: string;
       subComponentId: string;
-      subActivityId?: string;
+      projectOutputId?: string;
+      mainActivityId?: string;
       indicator: string;
       target: string;
       unitOfMeasure: string;
     }) =>
       api.patch<ActivityIndicator>(`/activity-indicators/${id}/`, {
         subComponentId: Number(subComponentId),
-        subActivityId: nullableId(subActivityId),
+        projectOutputId: nullableId(projectOutputId),
+        mainActivityId: nullableId(mainActivityId),
         indicator,
         target,
         unitOfMeasure,
