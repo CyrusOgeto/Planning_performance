@@ -97,6 +97,8 @@ export interface MainActivity {
   id: string;
   subComponentId: string;
   subComponentName: string;
+  projectOutputId?: string | null;
+  projectOutputName?: string;
   componentId?: string | null;
   componentName?: string;
   name: string;
@@ -116,6 +118,15 @@ export interface ProjectSubComponent {
   id: string;
   componentId: string;
   componentName: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectOutput {
+  id: string;
+  subComponentId: string;
+  subComponentName: string;
   name: string;
   createdAt: string;
   updatedAt: string;
@@ -157,7 +168,9 @@ export interface SubSubActivity {
 
 export interface ActivityIndicator {
   id: string;
-  subActivityId: string;
+  subComponentId: string;
+  subComponentName: string;
+  subActivityId: string | null;
   subActivityName: string;
   mainActivityName: string;
   indicator: string;
