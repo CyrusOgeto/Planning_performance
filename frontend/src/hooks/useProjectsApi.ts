@@ -17,6 +17,7 @@ import type {
   ProjectMapping,
   ProjectComponent,
   ProjectSubComponent,
+  ProjectOutput,
   MainActivity,
   MainActivityIndicator,
   SubActivity,
@@ -39,6 +40,7 @@ export const qk = {
   mainActivities: ["mainActivities"] as const,
   projectComponents: ["projectComponents"] as const,
   projectSubComponents: ["projectSubComponents"] as const,
+  projectOutputs: ["projectOutputs"] as const,
   activityIndicators: ["activityIndicators"] as const,
   mainActivityIndicators: ["mainActivityIndicators"] as const,
   subActivities: ["subActivities"] as const,
@@ -790,6 +792,46 @@ export function useDeleteProjectSubComponent() {
   });
 }
 
+export function useProjectOutputs() {
+  return useQuery({
+    queryKey: qk.projectOutputs,
+    queryFn: () => api.get<ProjectOutput[]>("/project-outputs/"),
+    staleTime: STALE,
+  });
+}
+
+export function useCreateProjectOutputs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (items: Array<{ subComponentId: string; name: string }>) =>
+      api.post<ProjectOutput[]>("/project-outputs/", items.map((item) => ({ ...item, subComponentId: Number(item.subComponentId) }))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.projectOutputs });
+      qc.invalidateQueries({ queryKey: qk.mainActivities });
+    },
+  });
+}
+
+export function useUpdateProjectOutput() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, subComponentId, name }: { id: string; subComponentId: string; name: string }) =>
+      api.patch<ProjectOutput>(`/project-outputs/${id}/`, { subComponentId: Number(subComponentId), name }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.projectOutputs }),
+  });
+}
+
+export function useDeleteProjectOutput() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/project-outputs/${id}/`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.projectOutputs });
+      qc.invalidateQueries({ queryKey: qk.mainActivities });
+    },
+  });
+}
+
 export function useMainActivities() {
   return useQuery({
     queryKey: qk.mainActivities,
@@ -801,8 +843,8 @@ export function useMainActivities() {
 export function useCreateMainActivity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ subComponentId, name }: { subComponentId: string; name: string }) =>
-      api.post<MainActivity>("/main-activities/", { subComponentId: Number(subComponentId), name }),
+    mutationFn: ({ subComponentId, projectOutputId, name }: { subComponentId: string; projectOutputId?: string; name: string }) =>
+      api.post<MainActivity>("/main-activities/", { subComponentId: Number(subComponentId), projectOutputId: nullableId(projectOutputId), name }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.mainActivities }),
   });
 }
@@ -810,8 +852,8 @@ export function useCreateMainActivity() {
 export function useUpdateMainActivity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, subComponentId, name }: { id: string; subComponentId: string; name: string }) =>
-      api.put<MainActivity>(`/main-activities/${id}/`, { subComponentId: Number(subComponentId), name }),
+    mutationFn: ({ id, subComponentId, projectOutputId, name }: { id: string; subComponentId: string; projectOutputId?: string; name: string }) =>
+      api.put<MainActivity>(`/main-activities/${id}/`, { subComponentId: Number(subComponentId), projectOutputId: nullableId(projectOutputId), name }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.mainActivities }),
   });
 }
@@ -837,17 +879,20 @@ export function useCreateActivityIndicator() {
   return useMutation({
     mutationFn: ({
       subActivityId,
+      subComponentId,
       indicator,
       target,
       unitOfMeasure,
     }: {
-      subActivityId: string;
+      subComponentId: string;
+      subActivityId?: string;
       indicator: string;
       target: string;
       unitOfMeasure: string;
     }) =>
       api.post<ActivityIndicator>("/activity-indicators/", {
-        subActivityId: Number(subActivityId),
+        subComponentId: Number(subComponentId),
+        subActivityId: nullableId(subActivityId),
         indicator,
         target,
         unitOfMeasure,
@@ -861,7 +906,8 @@ export function useCreateActivityIndicators() {
   return useMutation({
     mutationFn: (
       items: Array<{
-        subActivityId: string;
+        subComponentId: string;
+        subActivityId?: string;
         indicator: string;
         target: string;
         unitOfMeasure: string;
@@ -871,7 +917,8 @@ export function useCreateActivityIndicators() {
         "/activity-indicators/",
         items.map((item) => ({
           ...item,
-          subActivityId: Number(item.subActivityId),
+          subComponentId: Number(item.subComponentId),
+          subActivityId: nullableId(item.subActivityId),
         })),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.activityIndicators }),
@@ -884,18 +931,21 @@ export function useUpdateActivityIndicator() {
     mutationFn: ({
       id,
       subActivityId,
+      subComponentId,
       indicator,
       target,
       unitOfMeasure,
     }: {
       id: string;
-      subActivityId: string;
+      subComponentId: string;
+      subActivityId?: string;
       indicator: string;
       target: string;
       unitOfMeasure: string;
     }) =>
       api.patch<ActivityIndicator>(`/activity-indicators/${id}/`, {
-        subActivityId: Number(subActivityId),
+        subComponentId: Number(subComponentId),
+        subActivityId: nullableId(subActivityId),
         indicator,
         target,
         unitOfMeasure,
