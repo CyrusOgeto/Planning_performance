@@ -26,7 +26,8 @@ export default function ActivityIndicators() {
     return items
       .filter((item) =>
         !term ||
-        item.subActivityName.toLowerCase().includes(term) ||
+        (item.subComponentName || "").toLowerCase().includes(term) ||
+        (item.subActivityName || "").toLowerCase().includes(term) ||
         item.indicator.toLowerCase().includes(term) ||
         item.target.toLowerCase().includes(term) ||
         item.unitOfMeasure.toLowerCase().includes(term)
@@ -104,6 +105,7 @@ export default function ActivityIndicators() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Sub Component</TableHead>
                 <TableHead><SortButton label="Sub Activity" sortKey="subActivityName" /></TableHead>
                 <TableHead><SortButton label="Indicator" sortKey="indicator" /></TableHead>
                 <TableHead><SortButton label="Target" sortKey="target" /></TableHead>
@@ -115,14 +117,15 @@ export default function ActivityIndicators() {
             <TableBody>
               {pageItems.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
                     {q ? "No Indicators match your search." : "No Indicators yet. Click 'Add New Indicator' to get started."}
                   </TableCell>
                 </TableRow>
               )}
               {pageItems.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="text-sm text-muted-foreground">{item.subActivityName}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{item.subComponentName || "-"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{item.subActivityName || "-"}</TableCell>
                   <TableCell className="font-medium">{item.indicator}</TableCell>
                   <TableCell>{item.target}</TableCell>
                   <TableCell>{item.unitOfMeasure}</TableCell>

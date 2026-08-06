@@ -10,6 +10,8 @@ import {
   useActivityIndicators,
   useCreateActivityIndicators,
   useSubActivities,
+  useProjectSubComponents,
+  useMainActivities,
   useUpdateActivityIndicator,
 } from "@/hooks/useProjectsApi";
 
@@ -48,10 +50,13 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
   const { id } = useParams<{ id: string }>();
   const { data: items = [] } = useActivityIndicators();
   const { data: subActivities = [] } = useSubActivities();
+  const { data: subComponents = [] } = useProjectSubComponents();
+  const { data: mainActivities = [] } = useMainActivities();
   const createItems = useCreateActivityIndicators();
   const updateItem = useUpdateActivityIndicator();
 
   const [subActivityId, setSubActivityId] = useState("");
+  const [subComponentId, setSubComponentId] = useState("");
   const [rows, setRows] = useState<IndicatorRow[]>([createRow()]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -63,7 +68,8 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
         navigate("/projects/activity-indicators");
         return;
       }
-      setSubActivityId(item.subActivityId);
+      setSubActivityId(item.subActivityId ?? "");
+      setSubComponentId(item.subComponentId);
       setRows([
         {
           _key: uid(),
@@ -99,13 +105,13 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const nextErrors: Record<string, string> = {};
-    if (!subActivityId) nextErrors.subActivityId = "Please select a Sub Activity";
+    if (!subComponentId) nextErrors.subComponentId = "Please select a Sub Component";
     const validatedRows = rows.map((row) => ({
       ...row,
       errors: {
         indicator: row.indicator.trim() ? "" : "Indicator is required",
-        target: row.target.trim() ? "" : "Target is required",
-        unitOfMeasure: row.unitOfMeasure.trim() ? "" : "Unit of Measure is required",
+        target: "",
+        unitOfMeasure: "",
       },
     }));
     setRows(validatedRows);
@@ -120,6 +126,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
       if (mode === "create") {
         const payload = validatedRows.map((row) => ({
           subActivityId,
+          subComponentId,
           indicator: row.indicator.trim(),
           target: row.target.trim(),
           unitOfMeasure: row.unitOfMeasure.trim(),
@@ -131,6 +138,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
         await updateItem.mutateAsync({
           id: id!,
           subActivityId,
+          subComponentId,
           indicator: row.indicator.trim(),
           target: row.target.trim(),
           unitOfMeasure: row.unitOfMeasure.trim(),
@@ -161,8 +169,18 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="max-w-3xl space-y-1.5 mb-5">
+            <Label htmlFor="subComponent">Sub Component {!isView && <span className="text-red-600">*</span>}</Label>
+            {isView ? <Input value={subComponents.find((item) => item.id === subComponentId)?.name ?? ""} disabled /> : (
+              <select id="subComponent" value={subComponentId} onChange={(event) => { setSubComponentId(event.target.value); setSubActivityId(""); setErrors((prev) => ({ ...prev, subComponentId: "" })); }} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                <option value="">- Select Sub Component -</option>
+                {subComponents.map((item) => <option key={item.id} value={item.id}>{item.componentName} - {item.name}</option>)}
+              </select>
+            )}
+            {errors.subComponentId && <p className="text-xs text-red-600">{errors.subComponentId}</p>}
+          </div>
           <div className="max-w-3xl space-y-1.5">
-            <Label htmlFor="subActivity">Sub Activity {!isView && <span className="text-red-600">*</span>}</Label>
+            <Label htmlFor="subActivity">Sub Activity <span className="text-muted-foreground">(Optional)</span></Label>
             {isView ? (
               <Input value={subActivities.find((item) => item.id === subActivityId)?.name ?? ""} disabled />
             ) : (
@@ -176,7 +194,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="">- Select Sub Activity -</option>
-                {subActivities.map((item) => (
+                {subActivities.filter((item) => !subComponentId || mainActivities.some((main) => main.id === item.mainActivityId && main.subComponentId === subComponentId)).map((item) => (
                   <option key={item.id} value={item.id}>{item.mainActivityName} - {item.name}</option>
                 ))}
               </select>
@@ -229,7 +247,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label>Target {!isView && <span className="text-red-600">*</span>}</Label>
+                    <Label>Target <span className="text-muted-foreground">(Optional)</span></Label>
                     <Input
                       value={row.target}
                       onChange={(event) => updateRow(row._key, "target", event.target.value)}
@@ -241,7 +259,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label>Unit of Measure {!isView && <span className="text-red-600">*</span>}</Label>
+                    <Label>Unit of Measure <span className="text-muted-foreground">(Optional)</span></Label>
                     <Input
                       value={row.unitOfMeasure}
                       onChange={(event) => updateRow(row._key, "unitOfMeasure", event.target.value)}
@@ -264,7 +282,7 @@ export default function ActivityIndicatorForm({ mode = "create" }: Props) {
         {!isView && (
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => navigate("/projects/activity-indicators")}>Cancel</Button>
-            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={subActivities.length === 0}>
+            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={subComponents.length === 0}>
               <Save className="h-4 w-4" /> {mode === "create" ? (rows.length > 1 ? `Save ${rows.length} Indicators` : "Save Indicator") : "Update Indicator"}
             </Button>
           </div>
