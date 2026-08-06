@@ -170,9 +170,10 @@ export interface ActivityIndicator {
   id: string;
   subComponentId: string;
   subComponentName: string;
-  subActivityId: string | null;
-  subActivityName: string;
-  mainActivityName: string;
+  projectOutputId: string | null;
+  projectOutputName: string | null;
+  mainActivityId: string | null;
+  mainActivityName: string | null;
   indicator: string;
   target: string;
   unitOfMeasure: string;
