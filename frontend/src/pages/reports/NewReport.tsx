@@ -135,7 +135,9 @@ export default function NewReport() {
   );
   const availableIndicators = useMemo(() => {
     if (!selectedMainActivityId || !category) return [] as Array<MainActivityIndicator | ActivityIndicator>;
-    const activityLevelIndicators = activityIndicators.filter((item) => item.subActivityId === selectedSubActivityId);
+    const activityLevelIndicators = activityIndicators.filter(
+      (item) => item.mainActivityId === selectedMainActivityId,
+    );
     const mainLevelIndicators = mainIndicators.filter((item) => {
       if (item.mainActivityId !== selectedMainActivityId || item.category !== category) return false;
       return category !== "Value Chain" || item.valueChain === selectedValueChain;
@@ -297,7 +299,7 @@ export default function NewReport() {
           <Link to="/technical-reports">
             <Button variant="outline">Cancel</Button>
           </Link>
-          <Button type="submit" form="report-form" className="bg-[(--brand-navy)] hover:opacity-90" disabled={createReport.isPending}>
+          <Button type="submit" form="report-form" className="bg-green-700 hover:opacity-90" disabled={createReport.isPending}>
             {createReport.isPending ? "Saving..." : "Save Report"}
           </Button>
         </div>
