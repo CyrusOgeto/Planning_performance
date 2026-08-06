@@ -1,1 +1,0 @@
-import{j as i}from"./index-BgG6PEb_.js";import{P as t}from"./PagePlaceholder-DK4UozlY.js";import"./card-C6O37ksb.js";function e(){return i.jsx(t,{title:"Matrix — Affirmative Action",description:"Affirmative action matrix indicators."})}export{e as default};

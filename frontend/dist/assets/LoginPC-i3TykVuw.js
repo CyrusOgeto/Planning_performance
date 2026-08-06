@@ -1,1 +1,0 @@
-import{j as o}from"./index-BgG6PEb_.js";import{L as r}from"./LoginForm-w1cfGMHl.js";import"./eye-MMNvjj-I.js";import"./loader-circle-BqUAIW8_.js";import"./arrow-right-Cb35a4zN.js";import"./arrow-left-DfVwqCzT.js";function s(){return o.jsx(r,{moduleKey:"performance-contracts"})}export{s as default};

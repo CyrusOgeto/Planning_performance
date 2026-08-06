@@ -1,1 +1,0 @@
-import{j as o}from"./index-BgG6PEb_.js";import{P as t}from"./PagePlaceholder-DK4UozlY.js";import"./card-C6O37ksb.js";function n(){return o.jsx(t,{title:"Explanatory Notes — Core Mandate",description:"Explanatory notes for core mandate indicators."})}export{n as default};

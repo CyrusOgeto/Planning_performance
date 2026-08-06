@@ -1,1 +1,0 @@
-import{j as a}from"./index-BgG6PEb_.js";import{P as t}from"./PagePlaceholder-DK4UozlY.js";import"./card-C6O37ksb.js";function r(){return a.jsx(t,{title:"Explanatory Notes — Financial",description:"Explanatory notes for financial indicators."})}export{r as default};
