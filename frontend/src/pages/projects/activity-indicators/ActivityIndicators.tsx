@@ -7,159 +7,47 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useActivityIndicators, useDeleteActivityIndicator } from "@/hooks/useProjectsApi";
+import type { ActivityIndicator } from "@/utils/types";
 
-const PAGE_SIZE = 8;
+const GROUPS_PER_PAGE = 3;
+type SortKey = "indicator" | "projectOutputName" | "mainActivityName" | "target" | "unitOfMeasure" | "createdAt";
 
 export default function ActivityIndicators() {
-  const { data: items = [] } = useActivityIndicators();
+  const { data: items = [], isLoading } = useActivityIndicators();
   const deleteItem = useDeleteActivityIndicator();
-  const [q, setQ] = useState("");
+  const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [sort, setSort] = useState<{ key: "subActivityName" | "indicator" | "target" | "createdAt"; direction: "asc" | "desc" }>({
-    key: "createdAt",
-    direction: "desc",
-  });
+  const [sort, setSort] = useState<{ key: SortKey; direction: "asc" | "desc" }>({ key: "createdAt", direction: "desc" });
 
-  const filtered = useMemo(() => {
-    const term = q.toLowerCase();
-    return items
-      .filter((item) =>
-        !term ||
-        (item.subComponentName || "").toLowerCase().includes(term) ||
-        (item.subActivityName || "").toLowerCase().includes(term) ||
-        item.indicator.toLowerCase().includes(term) ||
-        item.target.toLowerCase().includes(term) ||
-        item.unitOfMeasure.toLowerCase().includes(term)
-      )
-      .sort((a, b) => {
-        const av = String(a[sort.key] ?? "");
-        const bv = String(b[sort.key] ?? "");
-        return sort.direction === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-      });
-  }, [items, q, sort]);
+  const groups = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    const matching = items.filter((item) => !term || [item.subComponentName, item.indicator, item.projectOutputName, item.mainActivityName, item.target, item.unitOfMeasure].some((value) => (value ?? "").toLowerCase().includes(term)));
+    const sorted = [...matching].sort((left, right) => {
+      const comparison = String(left[sort.key] ?? "").localeCompare(String(right[sort.key] ?? ""));
+      return sort.direction === "asc" ? comparison : -comparison;
+    });
+    return sorted.reduce<Array<{ key: string; name: string; subComponentName: string; indicators: ActivityIndicator[] }>>((all, item) => {
+      const key = item.mainActivityId ?? `unassigned-${item.subComponentId}`;
+      const name = item.mainActivityName || "No Main Activity Assigned";
+      const group = all.find((entry) => entry.key === key);
+      if (group) group.indicators.push(item); else all.push({ key, name, subComponentName: item.subComponentName || "Unassigned Sub Component", indicators: [item] });
+      return all;
+    }, []);
+  }, [items, query, sort]);
 
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(groups.length / GROUPS_PER_PAGE));
+  const visibleGroups = groups.slice((page - 1) * GROUPS_PER_PAGE, page * GROUPS_PER_PAGE);
+  const indicatorCount = groups.reduce((total, group) => total + group.indicators.length, 0);
+  const toggleSort = (key: SortKey) => setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
+  const handleDelete = async () => { if (!deleteId) return; try { await deleteItem.mutateAsync(deleteId); toast.success("Indicator deleted"); } catch { toast.error("Failed to delete Indicator"); } setDeleteId(null); };
+  const SortButton = ({ label, sortKey }: { label: string; sortKey: SortKey }) => <button type="button" onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1">{label}<ArrowUpDown className="h-3.5 w-3.5" /></button>;
 
-  const toggleSort = (key: typeof sort.key) => {
-    setSort((current) => ({
-      key,
-      direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
-    }));
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteItem.mutateAsync(id);
-      toast.success("Indicator deleted");
-    } catch {
-      toast.error("Failed to delete Indicator");
-    }
-    setDeleteId(null);
-  };
-
-  const SortButton = ({ label, sortKey }: { label: string; sortKey: typeof sort.key }) => (
-    <button type="button" onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1">
-      {label}
-      <ArrowUpDown className="h-3.5 w-3.5" />
-    </button>
-  );
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Indicator"
-        description="Manage Indicators linked to Sub Activities."
-        actions={
-          <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Link to="/projects/activity-indicators/new">
-              <Plus className="h-4 w-4" /> Add New Indicator
-            </Link>
-          </Button>
-        }
-      />
-
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm sm:max-w-xs">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-primary/10 p-2.5">
-            <BarChart2 className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Total Indicators</p>
-            <p className="text-2xl font-bold text-foreground">{items.length}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search indicators..." value={q} onChange={(event) => { setQ(event.target.value); setPage(1); }} className="pl-9" />
-          </div>
-          <span className="text-sm text-muted-foreground">{filtered.length} indicator{filtered.length !== 1 ? "s" : ""}</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Sub Component</TableHead>
-                <TableHead><SortButton label="Sub Activity" sortKey="subActivityName" /></TableHead>
-                <TableHead><SortButton label="Indicator" sortKey="indicator" /></TableHead>
-                <TableHead><SortButton label="Target" sortKey="target" /></TableHead>
-                <TableHead>Unit of Measure</TableHead>
-                <TableHead><SortButton label="Date Created" sortKey="createdAt" /></TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pageItems.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
-                    {q ? "No Indicators match your search." : "No Indicators yet. Click 'Add New Indicator' to get started."}
-                  </TableCell>
-                </TableRow>
-              )}
-              {pageItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="text-sm text-muted-foreground">{item.subComponentName || "-"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{item.subActivityName || "-"}</TableCell>
-                  <TableCell className="font-medium">{item.indicator}</TableCell>
-                  <TableCell>{item.target}</TableCell>
-                  <TableCell>{item.unitOfMeasure}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(item.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right">
-                    {deleteId === item.id ? (
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-muted-foreground">Confirm delete?</span>
-                        <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)}>Yes</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDeleteId(null)}>No</Button>
-                      </div>
-                    ) : (
-                      <div className="flex justify-end gap-1">
-                        <Button asChild size="sm" variant="ghost"><Link to={`/projects/activity-indicators/${item.id}/view`}><Eye className="h-3.5 w-3.5" /></Link></Button>
-                        <Button asChild size="sm" variant="ghost"><Link to={`/projects/activity-indicators/${item.id}/edit`}><Pencil className="h-3.5 w-3.5" /></Link></Button>
-                        <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600" onClick={() => setDeleteId(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-border p-4 text-sm">
-          <span className="text-muted-foreground">{filtered.length === 0 ? "0" : `${(page - 1) * PAGE_SIZE + 1}-${(page - 1) * PAGE_SIZE + pageItems.length}`} of {filtered.length}</span>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="h-4 w-4" /> Prev</Button>
-            <span className="text-muted-foreground">Page {page} / {totalPages}</span>
-            <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>Next <ChevronRight className="h-4 w-4" /></Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="space-y-6">
+    <PageHeader title="Indicator" description="Manage Indicators grouped by Main Activity." actions={<Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90"><Link to="/projects/activity-indicators/new"><Plus className="h-4 w-4" /> Add New Indicator</Link></Button>} />
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm sm:max-w-xs"><div className="flex items-center gap-3"><div className="rounded-lg bg-primary/10 p-2.5"><BarChart2 className="h-5 w-5 text-primary" /></div><div><p className="text-xs text-muted-foreground">Total Indicators</p><p className="text-2xl font-bold text-foreground">{items.length}</p></div></div></div>
+    <div className="rounded-xl border border-border bg-card shadow-sm"><div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-sm"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search indicators, outputs, or activities..." value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} className="pl-9" /></div><span className="text-sm text-muted-foreground">{indicatorCount} indicator{indicatorCount === 1 ? "" : "s"} in {groups.length} Main Activit{groups.length === 1 ? "y" : "ies"}</span></div></div>
+    {isLoading ? <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">Loading Indicators...</div> : visibleGroups.length === 0 ? <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">{query ? "No Indicators match your search." : "No Indicators yet. Click 'Add New Indicator' to get started."}</div> : visibleGroups.map((group) => <section key={group.key} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="border-b border-primary/20 bg-primary/5 px-5 py-4"><h2 className="font-semibold text-primary">Main Activity: {group.name}</h2><p className="mt-1 text-xs text-muted-foreground">Sub Component: {group.subComponentName} · {group.indicators.length} Indicator{group.indicators.length === 1 ? "" : "s"}</p></div><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead><SortButton label="Indicator" sortKey="indicator" /></TableHead><TableHead><SortButton label="Project Output" sortKey="projectOutputName" /></TableHead><TableHead><SortButton label="Target" sortKey="target" /></TableHead><TableHead><SortButton label="Unit of Measure" sortKey="unitOfMeasure" /></TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{group.indicators.map((item) => <TableRow key={item.id}><TableCell className="font-medium">{item.indicator}</TableCell><TableCell>{item.projectOutputName || "-"}</TableCell><TableCell>{item.target || "-"}</TableCell><TableCell>{item.unitOfMeasure || "-"}</TableCell><TableCell className="text-right">{deleteId === item.id ? <span className="inline-flex gap-2"><Button size="sm" variant="destructive" onClick={handleDelete}>Delete</Button><Button size="sm" variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button></span> : <span className="inline-flex gap-1"><Button asChild size="sm" variant="ghost"><Link to={`/projects/activity-indicators/${item.id}/view`} aria-label="View Indicator"><Eye className="h-3.5 w-3.5" /></Link></Button><Button asChild size="sm" variant="ghost"><Link to={`/projects/activity-indicators/${item.id}/edit`} aria-label="Edit Indicator"><Pencil className="h-3.5 w-3.5" /></Link></Button><Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600" onClick={() => setDeleteId(item.id)} aria-label="Delete Indicator"><Trash2 className="h-3.5 w-3.5" /></Button></span>}</TableCell></TableRow>)}</TableBody></Table></div></section>)}
+    <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4 text-sm"><span className="text-muted-foreground">{groups.length === 0 ? "0" : `Main Activities ${(page - 1) * GROUPS_PER_PAGE + 1}-${Math.min(page * GROUPS_PER_PAGE, groups.length)} of ${groups.length}`}</span><div className="flex items-center gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft className="h-4 w-4" /> Prev</Button><span className="text-muted-foreground">Page {page} / {totalPages}</span><Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((value) => value + 1)}>Next <ChevronRight className="h-4 w-4" /></Button></div></div>
+  </div>;
 }
