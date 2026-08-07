@@ -453,7 +453,7 @@ export default function NewReport() {
                         {selectedSubActivityId ? (
                           availableIndicators.length > 0 ? (
                             <div className="overflow-x-auto rounded-md border border-border/60">
-                              <table className="w-full min-w-[560px] text-sm">
+                              <table className="w-full  text-sm">
                                 <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
                                   <tr>
                                     <th className="px-3 py-2 font-semibold">Indicator</th>

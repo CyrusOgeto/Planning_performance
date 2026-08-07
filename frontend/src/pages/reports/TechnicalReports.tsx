@@ -343,7 +343,7 @@ export default function TechnicalReports() {
           )}
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full bg-green-700 text-sm">
               <thead>
                 <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="py-2.5 pr-3 text-left font-medium">
