@@ -1,58 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { ArrowDownUp, ChevronLeft, ChevronRight, Download, Edit3, Eye, FileText, Plus, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDownUp, ChevronLeft, ChevronRight, Download, Edit3, Eye, FileText, Plus, Search } from "lucide-react";
-import { toast } from "sonner";
-import {
-  useMainActivities,
-  useMainActivityIndicators,
-  useSubActivities,
-  useSubSubActivities,
-  useTechnicalReports,
-  useUpdateTechnicalReport,
-  useProjects,
-} from "@/hooks/useProjectsApi";
-import { QUARTER_OPTIONS, FINANCIAL_YEAR_OPTIONS } from "@/pages/projects/wizard/data";
-import type { MainActivityIndicator, SubSubActivity, TechnicalReport } from "@/utils/types";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { useDeleteTechnicalReport, useTechnicalReports, useTechnicalReportYears } from "@/hooks/useProjectsApi";
+import type { TechnicalReport } from "@/utils/types";
 
-const primaryTabs = ["Q1 FY2025/26", "Q2 FY2025/26", "Q3 FY2025/26", "Q4 FY2025/26", "Annual"];
-const secondaryTabs = ["All Reports", "Draft", "Submitted", "Under Review", "Approved"];
-const pageSizes = [5, 10, 20];
-
-type StatusKey = "Approved" | "Under Review" | "Draft" | "Submitted";
-type SortKey = "title" | "mainActivityName" | "subActivityName" | "reportingPeriod" | "createdAt" | "status";
-
-interface EditForm {
-  title: string;
-  projectId: string;
-  quarter: string;
-  financialYear: string;
-  mainActivityId: string;
-  subActivityId: string;
-  startDate: string;
-  endDate: string;
-  disbursedAmount: string;
-  utilizedAmount: string;
-  status: string;
-  achievement: string;
-  remarks: string;
-  supportingInformation: string;
-}
-
-const statusTone: Record<StatusKey, string> = {
-  Approved: "bg-green-100 text-green-800",
-  "Under Review": "bg-amber-100 text-amber-800",
-  Draft: "bg-slate-100 text-slate-700",
-  Submitted: "bg-blue-100 text-blue-800",
-};
+const quarterOptions = ["Quarter 1", "Quarter 2", "Quarter 3", "Quarter 4", "Annual"];
+const statusTabs = ["All Reports", "Draft", "Submitted", "Under Review", "Approved"];
+const statusTone: Record<string, string> = { Approved: "bg-green-100 text-green-800", "Under Review": "bg-amber-100 text-amber-800", Draft: "bg-slate-100 text-slate-700", Submitted: "bg-blue-100 text-blue-800" };
+type SortKey = "projectName" | "financialYear" | "quarter" | "createdAt" | "status";
 
 function formatDate(value?: string | null) {
   if (!value) return "N/A";
@@ -60,543 +23,83 @@ function formatDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
 }
 
-function utilization(disbursed: string | number | null | undefined, utilized: string | number | null | undefined) {
-  const base = Number(disbursed || 0);
-  return base > 0 ? ((Number(utilized || 0) / base) * 100).toFixed(2) : "0.00";
-}
-
-function cleanPdfText(value: unknown) {
-  return String(value ?? "")
-    .replace(/[^\x20-\x7E]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
-}
-
-function toEditForm(report: TechnicalReport): EditForm {
-  return {
-    title: report.title || "",
-    projectId: report.projectId || "",
-    quarter: report.quarter || "",
-    financialYear: report.financialYear || "",
-    mainActivityId: report.mainActivityId || "",
-    subActivityId: report.subActivityId || "",
-    startDate: report.startDate || "",
-    endDate: report.endDate || "",
-    disbursedAmount: String(report.disbursedAmount ?? 0),
-    utilizedAmount: String(report.utilizedAmount ?? 0),
-    status: report.status || "Draft",
-    achievement: report.achievement || "",
-    remarks: report.remarks || "",
-    supportingInformation: report.supportingInformation || "",
-  };
-}
-
 export default function TechnicalReports() {
-  const [tab, setTab] = useState(primaryTabs[0]);
-  const [sub, setSub] = useState("All Reports");
-  const [q, setQ] = useState("");
+  const [financialYear, setFinancialYear] = useState<string | null>(null);
+  const [quarterSelected, setQuarterSelected] = useState<string>("Annual");
+  const [status, setStatus] = useState("All Reports");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [selectedReport, setSelectedReport] = useState<TechnicalReport | null>(null);
-  const [editReport, setEditReport] = useState<TechnicalReport | null>(null);
-  const [editForm, setEditForm] = useState<EditForm | null>(null);
-  const [editError, setEditError] = useState("");
-  const { data: reports = [], isLoading, isError, error } = useTechnicalReports();
-  const { data: mainActivities = [] } = useMainActivities();
-  const { data: subActivities = [] } = useSubActivities();
-  const { data: subSubActivities = [] } = useSubSubActivities();
-  const { data: mainIndicators = [] } = useMainActivityIndicators();
-  const { data: projects = [] } = useProjects();
-  const updateReport = useUpdateTechnicalReport();
+  const [reportToDelete, setReportToDelete] = useState<TechnicalReport | null>(null);
+  const { data: reports = [], isLoading, isError, error } = useTechnicalReports({ financialYear: financialYear ?? undefined, quarter: quarterSelected ?? undefined });
+  const { data: availableYears = [] } = useTechnicalReportYears();
+  const deleteReport = useDeleteTechnicalReport();
 
-  const filtered = useMemo(() =>
-    reports
-      .filter((r) => {
-        const tabQuarterNum = tab.match(/\d/)?.[0];
-        return (
-          (tab === "Annual" || (tabQuarterNum ? (r.quarter || "").includes(tabQuarterNum) : true)) &&
-          (sub === "All Reports" || r.status === sub) &&
-          (!q || [r.title, r.id, r.mainActivityName, r.subActivityName, r.reportingPeriod, r.status]
-            .join(" ")
-            .toLowerCase()
-            .includes(q.toLowerCase()))
-        );
-      })
-      .sort((a, b) => {
-        const av = String(a[sortKey] ?? "").toLowerCase();
-        const bv = String(b[sortKey] ?? "").toLowerCase();
-        const result = av.localeCompare(bv, undefined, { numeric: true });
-        return sortDirection === "asc" ? result : -result;
-      }), [tab, sub, q, reports, sortKey, sortDirection]);
+  const filtered = useMemo(() => reports.filter((report) => {
+    const quarterDigit = quarterSelected.match(/\d/)?.[0];
+    const matchesQuarter = quarterSelected === "Annual" ? (report.quarter || "").toLowerCase().includes("annual") : !quarterDigit || (report.quarter || "").includes(quarterDigit);
+    const matchesFY = !financialYear || report.financialYear === financialYear;
+    const matchesStatus = status === "All Reports" || report.status === status;
+    const text = [report.projectName, report.title, report.financialYear, report.quarter, report.status, report.id].join(" ").toLowerCase();
+    return matchesFY && matchesQuarter && matchesStatus && (!search || text.includes(search.toLowerCase()));
+  }).sort((a, b) => {
+    const result = String(a[sortKey] ?? "").localeCompare(String(b[sortKey] ?? ""), undefined, { numeric: true });
+    return sortDirection === "asc" ? result : -result;
+  }), [reports, financialYear, quarterSelected, status, search, sortKey, sortDirection]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginatedReports = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const editSubActivities = subActivities.filter((item) => item.mainActivityId === editForm?.mainActivityId);
-  const editSubSubActivities = subSubActivities.filter((item) => item.subActivityId === editForm?.subActivityId);
-  const editIndicators = mainIndicators.filter((item) => item.mainActivityId === editForm?.mainActivityId);
+  const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => setPage(1), [financialYear, quarterSelected, status, search, pageSize]);
 
+  // default financial year when available
   useEffect(() => {
-    setPage(1);
-  }, [tab, sub, q, pageSize]);
-
-  const changeSort = (key: SortKey) => {
-    setSortKey(key);
-    setSortDirection((current) => (sortKey === key && current === "asc" ? "desc" : "asc"));
-  };
-
-  const openDetails = (report: TechnicalReport) => setSelectedReport(report);
-  const openEdit = (report: TechnicalReport) => {
-    setEditReport(report);
-    setEditForm(toEditForm(report));
-    setEditError("");
-  };
-
-  const saveEdit = async () => {
-    if (!editReport || !editForm) return;
-    if (!editForm.title.trim() || !editForm.projectId || !editForm.quarter || !editForm.financialYear) {
-      setEditError("Report title, Project, Quarter, and Financial Year are required.");
-      return;
+    if (!financialYear && availableYears && availableYears.length) {
+      setFinancialYear(availableYears[0]);
     }
-    if (editForm.startDate && editForm.endDate && editForm.endDate < editForm.startDate) {
-      setEditError("End date cannot be before start date.");
-      return;
-    }
+  }, [availableYears, financialYear]);
+  const changeSort = (key: SortKey) => { setSortKey(key); setSortDirection((current) => sortKey === key && current === "asc" ? "desc" : "asc"); };
+  const remove = async () => {
+    if (!reportToDelete) return;
     try {
-      await updateReport.mutateAsync({
-        id: editReport.id,
-        title: editForm.title.trim(),
-        projectId: editForm.projectId,
-        quarter: editForm.quarter,
-        financialYear: editForm.financialYear,
-        mainActivityId: editForm.mainActivityId,
-        subActivityId: editForm.subActivityId,
-        subSubActivities: editSubSubActivities.map((activity: SubSubActivity) => ({
-          id: activity.id,
-          name: activity.name || activity.subActivityName,
-          approvedActivityBudget: activity.approvedActivityBudget,
-        })),
-        indicators: editIndicators.map((indicator: MainActivityIndicator) => ({
-          id: indicator.id,
-          indicator: indicator.indicator,
-          target: indicator.target,
-        })),
-        startDate: editForm.startDate || null,
-        endDate: editForm.endDate || null,
-        disbursedAmount: Number(editForm.disbursedAmount || 0),
-        utilizedAmount: Number(editForm.utilizedAmount || 0),
-        percentageUtilization: Number(utilization(editForm.disbursedAmount, editForm.utilizedAmount)),
-        status: editForm.status,
-        achievement: editForm.achievement,
-        remarks: editForm.remarks,
-        supportingInformation: editForm.supportingInformation,
-        supportingDocuments: editReport.supportingDocuments || [],
-      });
-      toast.success("Report updated successfully.");
-      setEditReport(null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to update report.");
+      await deleteReport.mutateAsync(reportToDelete.id);
+      setReportToDelete(null);
+      toast.success("Technical report deleted successfully.");
+    } catch {
+      toast.error("Failed to delete technical report.");
     }
   };
+  const heading = (label: string, key: SortKey) => <th className="py-2.5 pr-3 text-left font-medium"><button type="button" className="inline-flex items-center gap-1" onClick={() => changeSort(key)}>{label}<ArrowDownUp className="h-3 w-3" /></button></th>;
 
-  const downloadPdf = (report: TechnicalReport) => {
-    const lines = [
-      "KALRO Planning, Performance Management System",
-      "Technical Report",
-      "",
-      `Report Title: ${report.title}`,
-      `Main Activity: ${report.mainActivityName || "N/A"}`,
-      `Sub Activity: ${report.subActivityName || "N/A"}`,
-      `Reporting Period: ${report.reportingPeriod || "N/A"}`,
-      `Date Created: ${formatDate(report.createdAt)}`,
-      `Status: ${report.status || "Draft"}`,
-      `Start Date: ${formatDate(report.startDate)}`,
-      `End Date: ${formatDate(report.endDate)}`,
-      `Amount Disbursed: ${report.disbursedAmount ?? 0}`,
-      `Amount Utilized: ${report.utilizedAmount ?? 0}`,
-      `Utilization: ${report.percentageUtilization ?? utilization(report.disbursedAmount, report.utilizedAmount)}%`,
-      "",
-      "Sub-Sub Activities:",
-      ...((report.subSubActivities || []).map((item, index) => `${index + 1}. ${item.name}`)),
-      "",
-      "Indicators:",
-      ...((report.indicators || []).map((item, index) => `${index + 1}. ${item.indicator}${item.target ? ` - Target: ${item.target}` : ""}`)),
-      "",
-      `Achievement: ${report.achievement || "N/A"}`,
-      `Remarks: ${report.remarks || "N/A"}`,
-      `Supporting Information: ${report.supportingInformation || "N/A"}`,
-      "Supporting Documents:",
-      ...((report.supportingDocuments || []).length ? report.supportingDocuments || [] : ["N/A"]),
-    ].slice(0, 52);
-    const stream = [
-      "BT",
-      "/F1 16 Tf 50 800 Td (KALRO Technical Report) Tj",
-      ...lines.map((line, index) => `/F1 ${index < 2 ? 12 : 10} Tf 0 -14 Td (${cleanPdfText(line).slice(0, 112)}) Tj`),
-      "ET",
-    ].join("\n");
-    const objects = [
-      "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-      "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-      "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-      "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-      `5 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`,
-    ];
-    let pdf = "%PDF-1.4\n";
-    const offsets = [0];
-    objects.forEach((object) => {
-      offsets.push(pdf.length);
-      pdf += `${object}\n`;
-    });
-    const xref = pdf.length;
-    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-    offsets.slice(1).forEach((offset) => {
-      pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-    });
-    pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-
-    const url = URL.createObjectURL(new Blob([pdf], { type: "application/pdf" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${cleanPdfText(report.title || "technical-report").replace(/\\[()]/g, "").replace(/\s+/g, "-").toLowerCase()}.pdf`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    toast.success("PDF downloaded.");
-  };
-
-  return (
-    <>
-      <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
-        <span>Dashboard</span>
-        <ChevronRight className="h-3 w-3" />
-        <span className="text-foreground">Technical Reports</span>
+  return <>
+    <div className="mb-4 flex items-center gap-1 text-xs text-muted-foreground"><span>Dashboard</span><ChevronRight className="h-3 w-3" /><span className="text-foreground">Technical Reports</span></div>
+    <h1 className="mb-5 text-2xl font-semibold">Technical Reports</h1>
+    <motion.div key={`${financialYear}-${quarterSelected}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }}><Card className="p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-1">{statusTabs.map((item) => <button key={item} onClick={() => setStatus(item)} className={cn("rounded-md px-2.5 py-1 text-xs font-medium", status === item ? "bg-muted font-semibold" : "text-muted-foreground hover:bg-muted/50")}>{item}</button>)}</div>
+        <div className="flex flex-wrap items-center gap-2"><div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search reports..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-52 pl-9 text-sm" /></div>
+          <Select value={financialYear ?? ""} onValueChange={(value) => setFinancialYear(value)}>
+            <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>{availableYears.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={quarterSelected} onValueChange={(value) => setQuarterSelected(value)}>
+            <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>{quarterOptions.map((q) => <SelectItem key={q} value={q}>{q}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}><SelectTrigger className="h-9 w-28"><SelectValue /></SelectTrigger><SelectContent>{[5, 10, 20].map((size) => <SelectItem key={size} value={String(size)}>{size} / page</SelectItem>)}</SelectContent></Select><Button asChild size="sm" className="gap-1.5 text-white"><Link to="/new-report"><Plus className="h-4 w-4" /> New Report</Link></Button></div>
       </div>
-      <h1 className="mb-5 text-2xl font-semibold">Technical Reports</h1>
-
-      <div className="mb-4 flex gap-1 overflow-x-auto rounded-lg border p-1 shadow-sm">
-        {primaryTabs.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition",
-              tab === t
-                ? "bg-[(--brand-green)] text-black shadow-sm"
-                : "text-muted-foreground hover:bg-muted"
-            )}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      <motion.div key={tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <Card className="p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-1">
-              {secondaryTabs.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setSub(t)}
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-xs font-medium transition",
-                    sub === t ? "bg-muted font-semibold" : "text-muted-foreground hover:bg-muted/50"
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search reports..."
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  className="w-52 pl-9 text-sm"
-                />
-              </div>
-              <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
-                <SelectTrigger className="h-9 w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {pageSizes.map((size) => (
-                    <SelectItem key={size} value={String(size)}>{size} / page</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button asChild size="sm" className="gap-1.5 text-white">
-                <Link to="/new-report"><Plus className="h-4 w-4" /> New Report</Link>
-              </Button>
-            </div>
-          </div>
-
-          {isError && (
-            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error instanceof Error ? error.message : "Unable to load reports."}
-            </div>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="w-full bg-green-700 text-sm">
-              <thead>
-                <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="py-2.5 pr-3 text-left font-medium">
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => changeSort("title")}>Report Title <ArrowDownUp className="h-3 w-3" /></button>
-                  </th>
-                  <th className="py-2.5 pr-3 text-left font-medium">
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => changeSort("mainActivityName")}>Main Activity <ArrowDownUp className="h-3 w-3" /></button>
-                  </th>
-                  <th className="py-2.5 pr-3 text-left font-medium">
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => changeSort("subActivityName")}>Sub Activity <ArrowDownUp className="h-3 w-3" /></button>
-                  </th>
-                  <th className="py-2.5 pr-3 text-left font-medium">
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => changeSort("reportingPeriod")}>Reporting Period <ArrowDownUp className="h-3 w-3" /></button>
-                  </th>
-                  <th className="py-2.5 pr-3 text-left font-medium">
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => changeSort("createdAt")}>Date Created <ArrowDownUp className="h-3 w-3" /></button>
-                  </th>
-                  <th className="py-2.5 pr-3 text-left font-medium">
-                    <button type="button" className="inline-flex items-center gap-1" onClick={() => changeSort("status")}>Status <ArrowDownUp className="h-3 w-3" /></button>
-                  </th>
-                  <th className="py-2.5 text-left font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedReports.length === 0 && (
-                  <tr><td colSpan={7} className="py-10 text-center text-muted-foreground">{isLoading ? "Loading reports..." : "No reports found."}</td></tr>
-                )}
-                {paginatedReports.map((r) => (
-                  <tr key={r.id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="max-w-64 py-3 pr-3">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0">
-                          <div className="truncate font-medium">{r.title}</div>
-                          <div className="text-xs text-muted-foreground">TR-{r.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="max-w-52 py-3 pr-3 text-muted-foreground">{r.mainActivityName || "N/A"}</td>
-                    <td className="max-w-52 py-3 pr-3 text-muted-foreground">{r.subActivityName || "N/A"}</td>
-                    <td className="py-3 pr-3 text-muted-foreground">{r.reportingPeriod || "N/A"}</td>
-                    <td className="py-3 pr-3 text-muted-foreground">{formatDate(r.createdAt)}</td>
-                    <td className="py-3 pr-3">
-                      <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone[(r.status as StatusKey) || "Draft"]) }>
-                        {r.status || "Draft"}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      <div className="flex flex-wrap gap-1">
-                        <Button variant="outline" size="sm" className="gap-1" onClick={() => openDetails(r)}>
-                          <Eye className="h-3.5 w-3.5" /> View
-                        </Button>
-                        <Button variant="outline" size="sm" className="gap-1" onClick={() => openEdit(r)}>
-                          <Edit3 className="h-3.5 w-3.5" /> Edit
-                        </Button>
-                        <Button variant="outline" size="sm" className="gap-1" onClick={() => downloadPdf(r)}>
-                          <Download className="h-3.5 w-3.5" /> PDF
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>
-              Showing {paginatedReports.length ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, filtered.length)} of {filtered.length} reports
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
-                <ChevronLeft className="h-4 w-4" /> Previous
-              </Button>
-              <span>Page {page} of {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
-                Next <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-
-      <Dialog open={Boolean(selectedReport)} onOpenChange={() => setSelectedReport(null)}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedReport?.title || "Report details"}</DialogTitle>
-            <DialogDescription>Read-only view of the saved technical report.</DialogDescription>
-          </DialogHeader>
-          {selectedReport && (
-            <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div><span className="font-medium">Main Activity:</span> {selectedReport.mainActivityName || "N/A"}</div>
-                <div><span className="font-medium">Sub Activity:</span> {selectedReport.subActivityName || "N/A"}</div>
-                <div><span className="font-medium">Reporting Period:</span> {selectedReport.reportingPeriod || "N/A"}</div>
-                <div><span className="font-medium">Status:</span> {selectedReport.status || "Draft"}</div>
-                <div><span className="font-medium">Start Date:</span> {formatDate(selectedReport.startDate)}</div>
-                <div><span className="font-medium">End Date:</span> {formatDate(selectedReport.endDate)}</div>
-                <div><span className="font-medium">Amount Disbursed:</span> {selectedReport.disbursedAmount ?? 0}</div>
-                <div><span className="font-medium">Amount Utilized:</span> {selectedReport.utilizedAmount ?? 0}</div>
-                <div><span className="font-medium">Utilization:</span> {selectedReport.percentageUtilization ?? utilization(selectedReport.disbursedAmount, selectedReport.utilizedAmount)}%</div>
-              </div>
-              <div className="rounded-md border bg-muted/20 p-3"><span className="font-medium">Sub-Sub Activities:</span>
-                <ul className="mt-1 list-disc pl-5">
-                  {(selectedReport.subSubActivities || []).length ? selectedReport.subSubActivities.map((item) => <li key={item.name}>{item.name}</li>) : <li>N/A</li>}
-                </ul>
-              </div>
-              <div className="rounded-md border bg-muted/20 p-3"><span className="font-medium">Indicators:</span>
-                <ul className="mt-1 list-disc pl-5">
-                  {(selectedReport.indicators || []).length ? selectedReport.indicators.map((item) => <li key={item.indicator}>{item.indicator}{item.target ? ` - Target: ${item.target}` : ""}</li>) : <li>N/A</li>}
-                </ul>
-              </div>
-              <div className="rounded-md border bg-muted/20 p-3"><span className="font-medium">Achievement:</span><p className="mt-1 whitespace-pre-wrap">{selectedReport.achievement || "N/A"}</p></div>
-              <div className="rounded-md border bg-muted/20 p-3"><span className="font-medium">Remarks:</span><p className="mt-1 whitespace-pre-wrap">{selectedReport.remarks || "N/A"}</p></div>
-              <div className="rounded-md border bg-muted/20 p-3"><span className="font-medium">Supporting Information:</span><p className="mt-1 whitespace-pre-wrap">{selectedReport.supportingInformation || "N/A"}</p></div>
-              <div className="rounded-md border bg-muted/20 p-3"><span className="font-medium">Attached Files:</span>
-                <ul className="mt-1 list-disc pl-5">
-                  {(selectedReport.supportingDocuments || []).length ? selectedReport.supportingDocuments?.map((name) => <li key={name}>{name}</li>) : <li>N/A</li>}
-                </ul>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(editReport)} onOpenChange={() => setEditReport(null)}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Report</DialogTitle>
-            <DialogDescription>Update report information and save changes to the backend.</DialogDescription>
-          </DialogHeader>
-          {editReport && editForm && (
-            <div className="space-y-4">
-              {editError && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{editError}</div>}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>Report Title</Label>
-                  <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Project</Label>
-                  <Select value={editForm.projectId} onValueChange={(value) => setEditForm({ ...editForm, projectId: value })}>
-                    <SelectTrigger><SelectValue placeholder="Select Project" /></SelectTrigger>
-                    <SelectContent>
-                      {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Quarter</Label>
-                  <Select value={editForm.quarter} onValueChange={(value) => setEditForm({ ...editForm, quarter: value })}>
-                    <SelectTrigger><SelectValue placeholder="Select Quarter" /></SelectTrigger>
-                    <SelectContent>
-                      {QUARTER_OPTIONS.map((q) => <SelectItem key={q} value={q}>{q}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Financial Year</Label>
-                  <Select value={editForm.financialYear} onValueChange={(value) => setEditForm({ ...editForm, financialYear: value })}>
-                    <SelectTrigger><SelectValue placeholder="Select Financial Year" /></SelectTrigger>
-                    <SelectContent>
-                      {FINANCIAL_YEAR_OPTIONS.map((fy) => <SelectItem key={fy} value={fy}>{fy}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Main Activity</Label>
-                  <Select value={editForm.mainActivityId} onValueChange={(value) => setEditForm({ ...editForm, mainActivityId: value, subActivityId: "" })}>
-                    <SelectTrigger><SelectValue placeholder="Select Main Activity" /></SelectTrigger>
-                    <SelectContent>
-                      {mainActivities.map((activity) => <SelectItem key={activity.id} value={activity.id}>{activity.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Sub Activity</Label>
-                  <Select value={editForm.subActivityId} onValueChange={(value) => setEditForm({ ...editForm, subActivityId: value })} disabled={!editForm.mainActivityId}>
-                    <SelectTrigger><SelectValue placeholder="Select Sub Activity" /></SelectTrigger>
-                    <SelectContent>
-                      {editSubActivities.map((activity) => <SelectItem key={activity.id} value={activity.id}>{activity.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Start Date</Label>
-                  <Input type="date" value={editForm.startDate} onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>End Date</Label>
-                  <Input type="date" value={editForm.endDate} onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Amount Disbursed</Label>
-                  <Input type="number" value={editForm.disbursedAmount} onChange={(e) => setEditForm({ ...editForm, disbursedAmount: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Amount Utilized</Label>
-                  <Input type="number" value={editForm.utilizedAmount} onChange={(e) => setEditForm({ ...editForm, utilizedAmount: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Percentage Utilization</Label>
-                  <div className="grid h-9 place-items-center rounded-md border bg-muted/40 text-sm font-semibold text-[(--brand-green)]">
-                    {utilization(editForm.disbursedAmount, editForm.utilizedAmount)}%
-                  </div>
-                </div>
-              <div className="space-y-1.5">
-                  <Label>Status</Label>
-                  <Select value={editForm.status} onValueChange={(value) => setEditForm({ ...editForm, status: value })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="Submitted">Submitted</SelectItem>
-                      <SelectItem value="Under Review">Under Review</SelectItem>
-                      <SelectItem value="Approved">Approved</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-md border bg-muted/20 p-3">
-                  <div className="text-sm font-medium">Sub-Sub Activities</div>
-                  <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">
-                    {editSubSubActivities.length ? editSubSubActivities.map((item) => <li key={item.id}>{item.name || item.subActivityName}</li>) : <li>N/A</li>}
-                  </ul>
-                </div>
-                <div className="rounded-md border bg-muted/20 p-3">
-                  <div className="text-sm font-medium">Indicators</div>
-                  <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">
-                    {editIndicators.length ? editIndicators.map((item) => <li key={item.id}>{item.indicator}</li>) : <li>N/A</li>}
-                  </ul>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Achievement</Label>
-                <Textarea value={editForm.achievement} onChange={(e) => setEditForm({ ...editForm, achievement: e.target.value })} rows={3} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Remarks</Label>
-                <Textarea value={editForm.remarks} onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })} rows={3} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Supporting Information</Label>
-                <Textarea value={editForm.supportingInformation} onChange={(e) => setEditForm({ ...editForm, supportingInformation: e.target.value })} rows={3} />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setEditReport(null)}>Cancel</Button>
-                <Button onClick={saveEdit} disabled={updateReport.isPending}>{updateReport.isPending ? "Saving..." : "Save Changes"}</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  );
+      {isError && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error instanceof Error ? error.message : "Unable to load reports."}</div>}
+      <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">{heading("Project Name", "projectName")}{heading("Financial Year", "financialYear")}{heading("Quarter", "quarter")}{heading("Date Created", "createdAt")}{heading("Status", "status")}<th className="py-2.5 text-left font-medium">Actions</th></tr></thead><tbody>
+        {!rows.length && <tr><td colSpan={6} className="py-10 text-center text-muted-foreground">{isLoading ? "Loading reports..." : (financialYear ? `No technical reports found for ${quarterSelected}, Financial Year ${financialYear}.` : "No reports found.")}</td></tr>}
+        {rows.map((report) => <tr key={report.id} className="border-b last:border-0 hover:bg-muted/30"><td className="max-w-64 py-3 pr-3"><div className="flex items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><div className="truncate font-medium">{report.projectName || report.title || "N/A"}</div><div className="text-xs text-muted-foreground">TR-{report.id}</div></div></div></td><td className="py-3 pr-3 text-muted-foreground">{report.financialYear || "N/A"}</td><td className="py-3 pr-3 text-muted-foreground">{report.quarter || "N/A"}</td><td className="py-3 pr-3 text-muted-foreground">{formatDate(report.createdAt)}</td><td className="py-3 pr-3"><span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusTone[report.status || "Draft"])}>{report.status || "Draft"}</span></td><td className="py-3"><div className="flex flex-wrap gap-1"><Button asChild variant="outline" size="sm" className="gap-1"><Link to={`/technical-reports/${report.id}`} aria-label={`View ${report.title}`}><Eye className="h-3.5 w-3.5" /> View</Link></Button><Button asChild variant="outline" size="sm" className="gap-1"><Link to={`/technical-reports/${report.id}/edit`} aria-label={`Edit ${report.title}`}><Edit3 className="h-3.5 w-3.5" /> Edit</Link></Button><Button variant="outline" size="sm" className="gap-1 text-red-700 hover:text-red-800" onClick={() => setReportToDelete(report)} disabled={deleteReport.isPending}><Trash2 className="h-3.5 w-3.5" /> Delete</Button><Button asChild variant="outline" size="sm" className="gap-1"><Link to={`/technical-reports/${report.id}`} state={{ download: true }}><Download className="h-3.5 w-3.5" /> PDF</Link></Button></div></td></tr>)}
+      </tbody></table></div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground"><span>Showing {rows.length ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, filtered.length)} of {filtered.length} reports</span><div className="flex items-center gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft className="h-4 w-4" /> Previous</Button><span>Page {page} of {totalPages}</span><Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((value) => value + 1)}>Next <ChevronRight className="h-4 w-4" /></Button></div></div>
+    </Card></motion.div>
+    <AlertDialog open={Boolean(reportToDelete)} onOpenChange={(open) => !open && !deleteReport.isPending && setReportToDelete(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader><AlertDialogTitle>Delete technical report?</AlertDialogTitle><AlertDialogDescription>This will permanently delete <span className="font-medium text-foreground">{reportToDelete?.title}</span>. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel disabled={deleteReport.isPending}>Cancel</AlertDialogCancel><AlertDialogAction className="bg-red-700 hover:bg-red-800" onClick={remove} disabled={deleteReport.isPending}>{deleteReport.isPending ? "Deleting..." : "Delete report"}</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>;
 }
