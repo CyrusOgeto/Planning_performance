@@ -39,3 +39,5 @@ backend/.env
 *.njsproj
 *.sln
 *.sw?
+.replit
+replit.md
