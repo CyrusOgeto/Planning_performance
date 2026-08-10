@@ -1053,10 +1053,45 @@ export interface SubSubActivityInput {
   approvedActivityBudget: string;
 }
 
-export function useTechnicalReports() {
+export function useTechnicalReports(filters?: { financialYear?: string; quarter?: string }) {
+  const queryKey = filters ? [...qk.technicalReports, filters] : qk.technicalReports;
   return useQuery({
-    queryKey: qk.technicalReports,
-    queryFn: () => api.get<TechnicalReport[]>("/technical-reports/"),
+    queryKey,
+    queryFn: () => {
+      let path = "/technical-reports/";
+      const params: string[] = [];
+      if (filters?.financialYear) params.push(`financialYear=${encodeURIComponent(filters.financialYear)}`);
+      if (filters?.quarter) params.push(`quarter=${encodeURIComponent(filters.quarter)}`);
+      if (params.length) path += `?${params.join("&")}`;
+      return api.get<TechnicalReport[]>(path);
+    },
+    staleTime: STALE,
+  });
+}
+
+export function useTechnicalReportYears() {
+  return useQuery({
+    queryKey: ["technicalReportYears"],
+    queryFn: async () => {
+      const list = await api.get<TechnicalReport[]>("/technical-reports/");
+      const years = Array.from(new Set(list.map((r) => r.financialYear).filter(Boolean)));
+      // sort descending by starting year (e.g. "2025/2026" -> 2025)
+      years.sort((a, b) => {
+        const ay = Number(String(a).split("/")[0] || 0);
+        const by = Number(String(b).split("/")[0] || 0);
+        return by - ay;
+      });
+      return years as string[];
+    },
+    staleTime: STALE,
+  });
+}
+
+export function useTechnicalReport(id?: string) {
+  return useQuery({
+    queryKey: ["technicalReport", id],
+    queryFn: () => api.get<TechnicalReport>(`/technical-reports/${id}/`),
+    enabled: Boolean(id),
     staleTime: STALE,
   });
 }
