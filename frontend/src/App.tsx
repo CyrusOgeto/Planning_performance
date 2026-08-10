@@ -100,6 +100,8 @@ const ActivityIndicatorForm = lazy(() => import("@/pages/projects/activity-indic
 const FinancialReports = lazy(() => import("@/pages/reports/FinancialReports"));
 const TechnicalReports = lazy(() => import("@/pages/reports/TechnicalReports"));
 const NewReport = lazy(() => import("@/pages/reports/NewReport"));
+const TechnicalReportDetails = lazy(() => import("@/pages/reports/TechnicalReportDetails"));
+const EditTechnicalReport = lazy(() => import("@/pages/reports/EditTechnicalReport"));
 
 const Notifications = lazy(() => import("@/pages/notifications/Notifications"));
 const UserManagement = lazy(() => import("@/pages/users/UserManagement"));
@@ -266,6 +268,8 @@ function AppRoutes() {
 
         <Route path="/financial-reports" element={<FinancialReports />} />
         <Route path="/technical-reports" element={<TechnicalReports />} />
+        <Route path="/technical-reports/:id" element={<TechnicalReportDetails />} />
+        <Route path="/technical-reports/:id/edit" element={<EditTechnicalReport />} />
         <Route path="/new-report" element={<NewReport />} />
 
         <Route path="/notifications" element={<Notifications />} />
