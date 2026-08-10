@@ -328,16 +328,16 @@ class TechnicalReportViewSet(viewsets.ModelViewSet):
     search_fields = [
         "title",
         "reporting_period",
-        "main_activity__name",
-        "sub_activity__name",
+        # "main_activity__name",
+        # "sub_activity__name",
     ]
     ordering_fields = [
         "title",
         "reporting_period",
         "created_at",
         "status",
-        "main_activity__name",
-        "sub_activity__name",
+        # "main_activity__name",
+        # "sub_activity__name",
     ]
 
 
